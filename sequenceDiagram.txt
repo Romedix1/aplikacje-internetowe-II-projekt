@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    actor S as Student
+    actor OU as Opiekun Uczelniany (UOPZ)
+    actor SEK as Dziekanat / Dyrektor
+    actor OZ as Opiekun Zakładowy (ZOPZ)
+
+    Note over S, OZ: FAZA 1: INICJACJA I DOKUMENTACJA WSTĘPNA
+    S->>OU: Zgłoszenie i uzgodnienie miejsca praktyki
+    S->>SEK: Dostarczenie Oświadczenia instytucji (Zał. nr 9)
+    SEK->>OZ: Wysłanie Porozumienia (Zał. nr 1) wraz z regulaminem
+    S->>OU: Uzgodnienie Programu i harmonogramu (Zał. nr 2a) z udziałem ZOPZ
+    SEK->>S: Wydanie Skierowania (część Karty praktyki - Zał. nr 3)
+
+    Note over S, OZ: FAZA 2: REALIZACJA PRAKTYKI I NADZÓR (120 DNI)
+    S->>OZ: Zgłoszenie się w firmie, szkolenie BHP
+    S->>S: Wykonywanie prac i prowadzenie Dziennika Praktyki (Zał. nr 6)
+    OZ->>S: Bieżące potwierdzanie zadań w Dzienniku (Zał. nr 6)
+    OU->>OZ: Hospitacja przebiegu praktyki w firmie (min. 1 raz)
+
+    Note over S, SEK: FAZA 3: OCENA ZAKŁADOWA (ZAKOŃCZENIE)
+    OZ->>S: Weryfikacja Dziennika Praktyki (Zał. nr 6)
+    OZ->>S: Wystawienie opinii i oceny na Karcie praktyki (Zał. nr 3)
+    OZ->>S: Potwierdzenie uzyskanych efektów uczenia się (Zał. nr 4)
+    S->>S: Opracowanie Sprawozdania z praktyki (Zał. nr 7)
+    OZ->>S: Zatwierdzenie opinii i Sprawozdania (Zał. nr 7)
+
+    Note over S, SEK: FAZA 4: ZALICZENIE UCZELNIANE I EGZAMIN
+    S->>S: Wypełnienie Kwestionariusza ankiety (Zał. nr 5)
+    S->>OU: Złożenie kompletu dokumentów (max 7 dni po zakończeniu praktyki)
+    SEK->>OU: Powołanie Komisji egzaminacyjnej przez Dyrektora
+    OU->>S: Egzamin ustny z oceną przed Komisją
+    OU->>SEK: Sporządzenie Protokołu egzaminu (Zał. nr 8)
+    OU->>OU: Wpis oceny do systemu USOS
