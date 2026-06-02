@@ -216,7 +216,7 @@ Przedstawia algorytm generowania dokumentu PDF: weryfikacja uprawnień, sprawdze
 
 ```bash
 git clone https://github.com/Romedix1/aplikacje-internetowe-II-projekt.git
-cd aplikacje-internetowe-II-projekt
+cd aplikacje-internetowe-II-projekt/aplikacja
 ```
 
 ---
@@ -263,7 +263,7 @@ CREATE DATABASE praktyki OWNER uzytkownik;
 #### 4.2 Zastosowanie schematu
 
 ```bash
-psql -U uzytkownik -d praktyki -f db/schema.sql
+psql -U uzytkownik -d praktyki -f app/db/schema.sql
 ```
 
 Skrypt `schema.sql` tworzy wszystkie tabele, typy `ENUM` i powiązania kluczami obcymi wymagane do działania systemu.
@@ -273,7 +273,7 @@ Skrypt `schema.sql` tworzy wszystkie tabele, typy `ENUM` i powiązania kluczami 
 Aby załadować przykładowe dane (studentów, opiekunów, praktyki) na potrzeby deweloperskie:
 
 ```bash
-psql -U uzytkownik -d praktyki -f db/pdf_test_data.sql
+psql -U uzytkownik -d praktyki -f app/db/pdf_test_data.sql
 ```
 
 > Plik `pdf_test_data.sql` zawiera fikcyjne rekordy przeznaczone wyłącznie do testów lokalnych.
@@ -283,7 +283,7 @@ psql -U uzytkownik -d praktyki -f db/pdf_test_data.sql
 ### 5. Uruchomienie aplikacji
 
 ```bash
-python run.py
+python app.py
 ```
 
 Aplikacja będzie dostępna pod adresem: [http://localhost:5000](http://localhost:5000)
@@ -293,11 +293,11 @@ Aplikacja będzie dostępna pod adresem: [http://localhost:5000](http://localhos
 ### Szybki start — podsumowanie poleceń
 
 ```bash
-git clone https://github.com/Romedix1/aplikacje-internetowe-II-projekt.git && cd aplikacje-internetowe-II-projekt
+git clone https://github.com/Romedix1/aplikacje-internetowe-II-projekt.git && cd aplikacje-internetowe-II-projekt/aplikacja
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-psql -U uzytkownik -d praktyki -f db/schema.sql
-psql -U uzytkownik -d praktyki -f db/seed_data.sql   # opcjonalnie
-python run.py
+psql -U uzytkownik -d praktyki -f app/db/schema.sql
+psql -U uzytkownik -d praktyki -f app/db/seed_data.sql   # opcjonalnie
+python app.py
 ```
