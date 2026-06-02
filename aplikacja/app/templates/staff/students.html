@@ -1,0 +1,109 @@
+{% extends "base.html" %} {% block title %}Studenci{% endblock %} {% block
+page_title %}Lista studentów{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Studenci</span>
+    <input
+      type="text"
+      class="form-control"
+      id="search"
+      placeholder="Szukaj po nazwisku lub indeksie..."
+      style="width: 280px"
+    />
+  </div>
+  <div class="table-wrap">
+    <table id="students-table">
+      <thead>
+        <tr>
+          <th>Indeks</th>
+          <th>Imię i nazwisko</th>
+          <th>E-mail</th>
+          <th>Status konta</th>
+          <th>Praktyka</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td
+            colspan="6"
+            style="text-align: center; color: var(--muted); padding: 24px"
+          >
+            Ładowanie...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  let allStudents = [];
+  let internshipMap = {};
+
+  async function load() {
+    const [students, internships] = await Promise.all([
+      apiFetch("/api/students"),
+      apiFetch("/api/internships"),
+    ]);
+    if (!students) return;
+
+    if (internships) {
+      internships.forEach((i) => {
+        internshipMap[i.student_id] = i;
+      });
+    }
+
+    allStudents = students;
+    renderTable(students);
+  }
+
+  function renderTable(data) {
+    const tbody = document.querySelector("#students-table tbody");
+    if (data.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Brak studentów</td></tr>';
+      return;
+    }
+
+    const statusMap = {
+      pending: "Oczekująca",
+      active: "W trakcie",
+      completed: "Zakończona",
+      cancelled: "Anulowana",
+    };
+
+    tbody.innerHTML = data
+      .map((s) => {
+        const i = internshipMap[s.id];
+        return `<tr>
+            <td style="font-weight:500">${s.index_number || "—"}</td>
+            <td>${s.first_name} ${s.last_name}</td>
+            <td style="color:var(--muted);font-size:13px">${s.email}</td>
+            <td><span class="badge ${s.is_active ? "badge-active" : "badge-cancelled"}">${s.is_active ? "Aktywny" : "Nieaktywny"}</span></td>
+            <td>${
+              i
+                ? `<span class="badge badge-${i.status}">${statusMap[i.status] || i.status}</span>`
+                : '<span style="color:var(--muted);font-size:13px">Brak praktyki</span>'
+            }</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    renderTable(
+      allStudents.filter(
+        (s) =>
+          s.last_name.toLowerCase().includes(q) ||
+          s.first_name.toLowerCase().includes(q) ||
+          (s.index_number || "").includes(q),
+      ),
+    );
+  });
+
+  load();
+</script>
+{% endblock %}

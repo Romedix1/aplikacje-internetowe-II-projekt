@@ -1,0 +1,230 @@
+{% extends "base.html" %} {% block title %}Sprawozdanie{% endblock %} {% block
+page_title %}Sprawozdanie z praktyki{% endblock %} {% block content %}
+<div id="no-internship" style="display: none">
+  <div class="empty-state">
+    <div class="empty-icon">◻</div>
+    <p>Nie masz jeszcze zarejestrowanej praktyki.</p>
+  </div>
+</div>
+
+<div id="report-section" style="display: none">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Sprawozdanie z praktyki zawodowej (Zał. 7)</span>
+      <span class="badge" id="report-status-badge" style="display: none"></span>
+    </div>
+
+    <div id="form-alert" style="display: none"></div>
+
+    <div class="form-group">
+      <label class="form-label"
+        >1. Charakterystyka zakładu pracy <span class="required">*</span></label
+      >
+      <textarea
+        class="form-control"
+        id="f-company_description"
+        rows="4"
+        placeholder="Opisz firmę, jej profil działalności, strukturę organizacyjną..."
+      ></textarea>
+      <div class="form-error" id="e-company_description">Pole wymagane.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label"
+        >2. Opis wykonanych prac <span class="required">*</span></label
+      >
+      <textarea
+        class="form-control"
+        id="f-work_description"
+        rows="6"
+        placeholder="Opisz szczegółowo wykonane zadania i projekty..."
+      ></textarea>
+      <div class="form-error" id="e-work_description">Pole wymagane.</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label"
+        >3. Samoocena i wnioski <span class="required">*</span></label
+      >
+      <textarea
+        class="form-control"
+        id="f-self_assessment"
+        rows="4"
+        placeholder="Oceń zdobyte kompetencje, opisz napotkane trudności i wnioski..."
+      ></textarea>
+      <div class="form-error" id="e-self_assessment">Pole wymagane.</div>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 8px">
+      <button
+        class="btn btn-secondary"
+        id="btn-save-draft"
+        onclick="saveDraft()"
+      >
+        Zapisz wersję roboczą
+      </button>
+      <button
+        class="btn btn-primary"
+        id="btn-submit-report"
+        onclick="submitReport()"
+      >
+        Prześlij do weryfikacji
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  let internshipId = null;
+  let reportDocId = null;
+
+  const STATUS_PL = {
+    draft: "Roboczy",
+    submitted: "Przesłany",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      "/api/internships?student_id={{ current_user.id }}",
+    );
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship").style.display = "block";
+      return;
+    }
+    internshipId = internships[0].id;
+    document.getElementById("report-section").style.display = "block";
+
+    const report = await apiFetch(`/api/reports/internship/${internshipId}`);
+
+    if (report && report.id) {
+      reportDocId = report.id;
+
+      const badge = document.getElementById("report-status-badge");
+      badge.textContent = STATUS_PL[report.status] || report.status;
+
+      let badgeColorClass = report.status;
+      if (report.status === "needs_revision") {
+        badgeColorClass = "cancelled";
+      }
+
+      badge.className = `badge badge-${badgeColorClass}`;
+      badge.style.display = "inline-flex";
+
+      document.getElementById("f-company_description").value =
+        report.company_description;
+      document.getElementById("f-work_description").value =
+        report.work_description;
+      document.getElementById("f-self_assessment").value =
+        report.self_assessment;
+
+      const isLocked = !["draft", "needs_revision"].includes(report.status);
+      if (isLocked) {
+        [
+          "f-company_description",
+          "f-work_description",
+          "f-self_assessment",
+        ].forEach((id) => {
+          document.getElementById(id).disabled = true;
+        });
+        document.getElementById("btn-save-draft").style.display = "none";
+        document.getElementById("btn-submit-report").style.display = "none";
+        showAlert(
+          "info",
+          `Sprawozdanie przesłane. Status: ${STATUS_PL[report.status]}. Edycja zablokowana.`,
+        );
+      }
+    }
+  });
+
+  function validate() {
+    let valid = true;
+    [
+      "f-company_description",
+      "f-work_description",
+      "f-self_assessment",
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      const err = document.getElementById(id.replace("f-", "e-"));
+      if (!el.value.trim()) {
+        el.classList.add("error");
+        err.classList.add("show");
+        valid = false;
+      } else {
+        el.classList.remove("error");
+        err.classList.remove("show");
+      }
+    });
+    return valid;
+  }
+
+  function showAlert(type, msg) {
+    const el = document.getElementById("form-alert");
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    el.style.display = "block";
+    setTimeout(() => {
+      el.style.display = "none";
+    }, 5000);
+  }
+
+  function buildPayload(statusType) {
+    return {
+      internship_id: internshipId,
+      status: statusType,
+      company_description: document
+        .getElementById("f-company_description")
+        .value.trim(),
+      work_description: document
+        .getElementById("f-work_description")
+        .value.trim(),
+      self_assessment: document
+        .getElementById("f-self_assessment")
+        .value.trim(),
+    };
+  }
+
+  async function saveDraft() {
+    if (!validate()) return;
+    const payload = buildPayload("draft");
+
+    const result = reportDocId
+      ? await apiPut(`/api/reports/${reportDocId}`, payload)
+      : await apiPost("/api/reports", payload);
+
+    if (result) {
+      if (!reportDocId) reportDocId = result.id;
+      showAlert("success", "Wersja robocza zapisana w bazie.");
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      showAlert("error", "Błąd zapisu.");
+    }
+  }
+
+  async function submitReport() {
+    if (!validate()) return;
+    if (
+      !confirm(
+        "Czy na pewno chcesz przesłać sprawozdanie? Zablokuje to możliwość edycji.",
+      )
+    )
+      return;
+
+    const payload = buildPayload("submitted");
+
+    const result = reportDocId
+      ? await apiPut(`/api/reports/${reportDocId}`, payload)
+      : await apiPost("/api/reports", payload);
+
+    if (result) {
+      showAlert("success", "Sprawozdanie przesłane do ZOPZ.");
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showAlert("error", "Błąd podczas wysyłania.");
+    }
+  }
+</script>
+{% endblock %}

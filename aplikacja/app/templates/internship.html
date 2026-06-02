@@ -1,0 +1,122 @@
+{% extends "base.html" %} {% block title %}Moja praktyka{% endblock %} {% block
+page_title %}Moja praktyka{% endblock %} {% block content %}
+<div id="no-internship" style="display: none">
+  <div class="empty-state">
+    <div class="empty-icon">◈</div>
+    <p>Nie masz jeszcze zarejestrowanej praktyki zawodowej.</p>
+    <p style="font-size: 13px">
+      Skontaktuj się z sekretariatem lub opiekunem uczelnianym.
+    </p>
+  </div>
+</div>
+
+<div id="internship-details" style="display: none">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dane praktyki</span>
+      <span class="badge" id="status-badge">—</span>
+    </div>
+    <table style="width: 100%">
+      <tr>
+        <td style="color: var(--muted); width: 200px; padding: 8px 0">
+          Nazwa firmy
+        </td>
+        <td id="d-company">—</td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 8px 0">Adres</td>
+        <td id="d-address">—</td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 8px 0">Data rozpoczęcia</td>
+        <td id="d-start">—</td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 8px 0">Data zakończenia</td>
+        <td id="d-end">—</td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 8px 0">
+          Liczba dni roboczych
+        </td>
+        <td id="d-days">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dokumenty</span>
+      <a
+        href="{{ url_for('student.documents') }}"
+        class="btn btn-secondary btn-sm"
+        >Zarządzaj</a
+      >
+    </div>
+    <div class="table-wrap">
+      <table id="docs-table">
+        <thead>
+          <tr>
+            <th>Dokument</th>
+            <th>Typ</th>
+            <th>Status</th>
+            <th>Przesłano</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td
+              colspan="4"
+              style="text-align: center; color: var(--muted); padding: 24px"
+            >
+              Ładowanie...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      "/api/internships?student_id={{ current_user.id }}",
+    );
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship").style.display = "block";
+      return;
+    }
+    const i = internships[0];
+    document.getElementById("internship-details").style.display = "block";
+    document.getElementById("d-company").textContent = i.company_name;
+    document.getElementById("d-address").textContent = i.company_address || "—";
+    document.getElementById("d-start").textContent = i.start_date;
+    document.getElementById("d-end").textContent = i.end_date;
+    document.getElementById("d-days").textContent = i.working_days;
+    const badge = document.getElementById("status-badge");
+    badge.textContent = i.status;
+    badge.className = `badge badge-${i.status}`;
+
+    const docs = await apiFetch(`/api/documents?internship_id=${i.id}`);
+    const tbody = document.querySelector("#docs-table tbody");
+    if (!docs || docs.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Brak dokumentów</td></tr>';
+    } else {
+      tbody.innerHTML = docs
+        .map(
+          (d) => `
+            <tr>
+                <td>${d.name}</td>
+                <td style="font-family:monospace;font-size:13px">${d.doc_type}</td>
+                <td><span class="badge badge-${d.status}">${d.status}</span></td>
+                <td style="color:var(--muted);font-size:13px">${d.submitted_at || "—"}</td>
+            </tr>`,
+        )
+        .join("");
+    }
+  });
+</script>
+{% endblock %}

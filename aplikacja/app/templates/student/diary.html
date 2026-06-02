@@ -1,0 +1,350 @@
+{% extends "base.html" %} {% block title %}Dziennik praktyki{% endblock %} {%
+block page_title %}Dziennik praktyki zawodowej{% endblock %} {% block
+topbar_actions %}
+<div style="display: flex; gap: 8px" id="topbar-actions">
+  <button
+    class="btn btn-secondary btn-sm"
+    id="btn-submit"
+    onclick="submitDiary()"
+    style="display: none"
+  >
+    Prześlij do weryfikacji
+  </button>
+  <button
+    class="btn btn-primary btn-sm"
+    id="btn-add"
+    onclick="openModal()"
+    style="display: none"
+  >
+    + Dodaj wpis
+  </button>
+</div>
+{% endblock %} {% block content %}
+<div id="no-internship" style="display: none">
+  <div class="empty-state">
+    <div class="empty-icon">☰</div>
+    <p>Nie masz jeszcze zarejestrowanej praktyki.</p>
+  </div>
+</div>
+
+<div id="diary-section" style="display: none">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Wpisów</div>
+      <div class="stat-value" id="stat-entries">0</div>
+      <div class="stat-sub">z 120 wymaganych</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Potwierdzone ZOPZ</div>
+      <div class="stat-value" id="stat-confirmed">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Status dziennika</div>
+      <div class="stat-value" id="stat-status" style="font-size: 18px">—</div>
+    </div>
+  </div>
+
+  <div id="locked-alert" class="alert alert-info" style="display: none">
+    Dziennik został przesłany do weryfikacji i jest zablokowany. Po weryfikacji
+    opiekun może go odblokować.
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Wpisy dziennika</span>
+    </div>
+    <div class="table-wrap">
+      <table id="diary-table">
+        <thead>
+          <tr>
+            <th>Dzień</th>
+            <th>Data</th>
+            <th>Opis wykonanych prac</th>
+            <th>Efekty kształcenia</th>
+            <th>Potwierdzenie ZOPZ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="diary-tbody">
+          <tr>
+            <td
+              colspan="6"
+              style="text-align: center; color: var(--muted); padding: 24px"
+            >
+              Ładowanie...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Dodaj wpis do dziennika</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="form-alert" style="display: none"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"
+            >Numer dnia <span class="required">*</span></label
+          >
+          <input
+            type="number"
+            class="form-control"
+            id="f-day_number"
+            min="1"
+            max="120"
+            placeholder="np. 1"
+          />
+          <div class="form-error" id="e-day_number">
+            Wymagany, zakres 1–120.
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data <span class="required">*</span></label>
+          <input type="date" class="form-control" id="f-work_date" />
+          <div class="form-error" id="e-work_date">Pole wymagane.</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"
+          >Opis wykonanych prac <span class="required">*</span></label
+        >
+        <textarea
+          class="form-control"
+          id="f-description"
+          rows="4"
+          placeholder="Opisz szczegółowo wykonane zadania..."
+        ></textarea>
+        <div class="form-error" id="e-description">Pole wymagane.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Numery efektów kształcenia</label>
+        <input
+          type="text"
+          class="form-control"
+          id="f-outcome_numbers"
+          placeholder="np. 01,03,07"
+        />
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
+          Oddziel przecinkami. Efekty 01–13.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Anuluj</button>
+      <button class="btn btn-primary" onclick="submitEntry()">
+        Zapisz wpis
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  let internshipId = null;
+  let diaryLocked = false;
+
+  const STATUS_PL = {
+    draft: "Roboczy",
+    submitted: "Przesłany",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      "/api/internships?student_id={{ current_user.id }}",
+    );
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship").style.display = "block";
+      return;
+    }
+    internshipId = internships[0].id;
+    document.getElementById("diary-section").style.display = "block";
+    await loadDiary();
+  });
+
+  async function loadDiary() {
+    const data = await apiFetch(`/api/diary/${internshipId}`);
+    if (!data) return;
+
+    const entries = data.entries || [];
+    const confirmed = entries.filter((e) => e.confirmed_by_zopz).length;
+
+    const currentStatus = data.status || "draft";
+    diaryLocked = !["draft", "needs_revision"].includes(currentStatus);
+
+    document.getElementById("stat-entries").textContent = entries.length;
+    document.getElementById("stat-confirmed").textContent = confirmed;
+    document.getElementById("stat-status").textContent =
+      STATUS_PL[currentStatus] || currentStatus;
+
+    document.getElementById("btn-add").style.display = diaryLocked
+      ? "none"
+      : "inline-flex";
+    document.getElementById("btn-submit").style.display = diaryLocked
+      ? "none"
+      : "inline-flex";
+
+    const alertBox = document.getElementById("locked-alert");
+    if (currentStatus === "approved") {
+      alertBox.className = "alert alert-success";
+      alertBox.innerHTML =
+        "Twój dziennik został w pełni zatwierdzony przez opiekuna. Edycja jest zablokowana.";
+      alertBox.style.display = "block";
+    } else if (diaryLocked) {
+      alertBox.className = "alert alert-info";
+      alertBox.innerHTML =
+        "Dziennik został przesłany do weryfikacji i jest zablokowany. Po weryfikacji opiekun może go odblokować.";
+      alertBox.style.display = "block";
+    } else {
+      alertBox.style.display = "none";
+    }
+
+    const tbody = document.getElementById("diary-tbody");
+    if (entries.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Brak wpisów. Kliknij "+ Dodaj wpis" aby rozpocząć.</td></tr>';
+      return;
+    }
+
+    entries.sort((a, b) => a.day_number - b.day_number);
+    tbody.innerHTML = entries
+      .map((e) => {
+        let zopzStatus = '<span class="badge badge-draft">Oczekuje</span>';
+
+        if (e.confirmed_by_zopz) {
+          zopzStatus = '<span class="badge badge-active">✓ Potwierdzono</span>';
+        } else if (
+          data.status === "submitted" ||
+          data.status === "under_review"
+        ) {
+          zopzStatus =
+            '<span class="badge badge-draft">Oczekuje na weryfikację</span>';
+        } else if (e.is_rejected) {
+          zopzStatus = '<span class="badge badge-cancelled">X Odrzucono</span>';
+        }
+
+        return `
+        <tr>
+            <td style="font-weight:500;color:var(--muted)">${String(e.day_number).padStart(2, "0")}</td>
+            <td style="font-size:13px">${e.work_date}</td>
+            <td style="max-width:320px">${e.description}</td>
+            <td style="font-size:13px;color:var(--muted)">${e.outcome_numbers || "—"}</td>
+            <td>${zopzStatus}</td>
+            <td>${diaryLocked || e.confirmed_by_zopz ? "" : `<button class="btn btn-danger btn-sm" onclick="deleteEntry(${e.id})">Usuń</button>`}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function openModal() {
+    const currentCount =
+      parseInt(document.getElementById("stat-entries").textContent) || 0;
+
+    if (currentCount >= 120) {
+      alert(
+        "Osiągnięto wymagany limit 120 wpisów w dzienniku. Nie musisz (i nie możesz) dodawać więcej.",
+      );
+      return;
+    }
+
+    document.getElementById("modal").classList.add("show");
+  }
+  function closeModal() {
+    document.getElementById("modal").classList.remove("show");
+    [
+      "f-day_number",
+      "f-work_date",
+      "f-description",
+      "f-outcome_numbers",
+    ].forEach((id) => {
+      document.getElementById(id).value = "";
+      document.getElementById(id).classList.remove("error");
+    });
+    ["e-day_number", "e-work_date", "e-description"].forEach((id) => {
+      document.getElementById(id).classList.remove("show");
+    });
+    document.getElementById("form-alert").style.display = "none";
+  }
+
+  async function submitEntry() {
+    let valid = true;
+
+    const day = parseInt(document.getElementById("f-day_number").value);
+    if (!day || day < 1 || day > 120) {
+      document.getElementById("f-day_number").classList.add("error");
+      document.getElementById("e-day_number").classList.add("show");
+      valid = false;
+    } else {
+      document.getElementById("f-day_number").classList.remove("error");
+      document.getElementById("e-day_number").classList.remove("show");
+    }
+
+    if (!document.getElementById("f-work_date").value) {
+      document.getElementById("f-work_date").classList.add("error");
+      document.getElementById("e-work_date").classList.add("show");
+      valid = false;
+    } else {
+      document.getElementById("f-work_date").classList.remove("error");
+      document.getElementById("e-work_date").classList.remove("show");
+    }
+
+    if (!document.getElementById("f-description").value.trim()) {
+      document.getElementById("f-description").classList.add("error");
+      document.getElementById("e-description").classList.add("show");
+      valid = false;
+    } else {
+      document.getElementById("f-description").classList.remove("error");
+      document.getElementById("e-description").classList.remove("show");
+    }
+
+    if (!valid) return;
+
+    const result = await apiPost(`/api/diary/${internshipId}/entries`, {
+      day_number: parseInt(document.getElementById("f-day_number").value),
+      work_date: document.getElementById("f-work_date").value,
+      description: document.getElementById("f-description").value.trim(),
+      outcome_numbers: document
+        .getElementById("f-outcome_numbers")
+        .value.trim(),
+    });
+
+    if (result) {
+      closeModal();
+      loadDiary();
+    } else {
+      const alert = document.getElementById("form-alert");
+      alert.className = "alert alert-error";
+      alert.textContent = lastError || "Błąd podczas zapisywania.";
+      alert.style.display = "block";
+    }
+  }
+
+  async function deleteEntry(id) {
+    if (!confirm("Czy na pewno usunąć ten wpis?")) return;
+    const ok = await apiDelete(`/api/diary/entries/${id}`);
+    if (ok) loadDiary();
+  }
+
+  async function submitDiary() {
+    if (!confirm("Czy na pewno przesłać dziennik do weryfikacji?")) return;
+
+    const result = await apiPut(`/api/diary/${internshipId}/submit`, {});
+
+    if (result) {
+      console.log("Dziennik przesłany, przeładowuję...");
+      await loadDiary();
+
+      alert("Dziennik został pomyślnie przesłany do weryfikacji.");
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+flask
+flask-sqlalchemy
+flask-login
+msal
+requests
+python-dotenv
+psycopg2-binary
+authlib

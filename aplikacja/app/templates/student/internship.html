@@ -1,0 +1,245 @@
+{% extends "base.html" %} {% block title %}Moja praktyka{% endblock %} {% block
+page_title %}Moja praktyka{% endblock %} {% block content %}
+<div id="no-internship" style="display: none">
+  <div class="empty-state">
+    <div class="empty-icon">◈</div>
+    <p>Nie masz jeszcze zarejestrowanej praktyki zawodowej.</p>
+    <p style="font-size: 13px; color: var(--muted)">
+      Skontaktuj się z sekretariatem lub opiekunem uczelnianym.
+    </p>
+  </div>
+</div>
+
+<div id="internship-details" style="display: none">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Status praktyki</div>
+      <div class="stat-value" id="stat-status">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Dni roboczych</div>
+      <div class="stat-value" id="stat-days">—</div>
+      <div class="stat-sub">wymagane: 120</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Dokumenty</div>
+      <div class="stat-value" id="stat-docs">—</div>
+      <div class="stat-sub">przesłanych</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dane praktyki</span>
+      <span class="badge" id="status-badge">—</span>
+    </div>
+    <table style="width: 100%">
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            width: 200px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Nazwa firmy
+        </td>
+        <td
+          style="
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+          "
+          id="d-company"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Adres firmy
+        </td>
+        <td
+          style="padding: 10px 0; border-bottom: 1px solid var(--border)"
+          id="d-address"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Data rozpoczęcia
+        </td>
+        <td
+          style="padding: 10px 0; border-bottom: 1px solid var(--border)"
+          id="d-start"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Data zakończenia
+        </td>
+        <td
+          style="padding: 10px 0; border-bottom: 1px solid var(--border)"
+          id="d-end"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Opiekun uczelniany
+        </td>
+        <td
+          style="padding: 10px 0; border-bottom: 1px solid var(--border)"
+          id="d-uopz"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 10px 0">Opiekun zakładowy</td>
+        <td style="padding: 10px 0" id="d-zopz">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dokumenty praktyki</span>
+    </div>
+    <div class="table-wrap">
+      <table id="docs-table">
+        <thead>
+          <tr>
+            <th>Dokument</th>
+            <th>Typ</th>
+            <th>Status</th>
+            <th>Przesłano</th>
+            <th>Uwagi opiekuna</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td
+              colspan="5"
+              style="text-align: center; color: var(--muted); padding: 24px"
+            >
+              Ładowanie...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  const STATUS_PL = {
+    pending: "Oczekująca",
+    active: "W trakcie",
+    completed: "Zakończona",
+    cancelled: "Anulowana",
+    draft: "Roboczy",
+    submitted: "Przesłany",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      "/api/internships?student_id={{ current_user.id }}",
+    );
+
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship").style.display = "block";
+      return;
+    }
+
+    const i = internships[0];
+    document.getElementById("internship-details").style.display = "block";
+
+    document.getElementById("stat-status").textContent =
+      STATUS_PL[i.status] || i.status;
+    document.getElementById("stat-days").textContent = i.working_days;
+
+    document.getElementById("d-company").textContent = i.company_name;
+    document.getElementById("d-address").textContent = i.company_address || "—";
+    document.getElementById("d-start").textContent = i.start_date;
+    document.getElementById("d-end").textContent = i.end_date;
+    if (i.uopz_id || i.zopz_id) {
+      const allUsers = (await apiFetch("/api/students/list/supervisors")) || [];
+      const uopz = allUsers.find((u) => u.id === i.uopz_id);
+      const zopz = allUsers.find((u) => u.id === i.zopz_id);
+      document.getElementById("d-uopz").textContent = uopz
+        ? uopz.full_name
+        : i.uopz_id
+          ? "ID: " + i.uopz_id
+          : "Nieprzypisany";
+      document.getElementById("d-zopz").textContent = zopz
+        ? zopz.full_name
+        : i.zopz_id
+          ? "ID: " + i.zopz_id
+          : "Nieprzypisany";
+    } else {
+      document.getElementById("d-uopz").textContent = "Nieprzypisany";
+      document.getElementById("d-zopz").textContent = "Nieprzypisany";
+    }
+
+    const badge = document.getElementById("status-badge");
+    badge.textContent = STATUS_PL[i.status] || i.status;
+    badge.className = `badge badge-${i.status}`;
+
+    const docs = await apiFetch(`/api/documents?internship_id=${i.id}`);
+    document.getElementById("stat-docs").textContent = docs ? docs.length : 0;
+
+    const tbody = document.querySelector("#docs-table tbody");
+    if (!docs || docs.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Brak dokumentów</td></tr>';
+    } else {
+      tbody.innerHTML = docs
+        .map(
+          (d) => `
+            <tr>
+                <td style="font-weight:500">${d.name}</td>
+                <td style="font-family:monospace;font-size:13px;color:var(--muted)">${d.doc_type}</td>
+                <td><span class="badge badge-${d.status}">${STATUS_PL[d.status] || d.status}</span></td>
+                <td style="font-size:13px;color:var(--muted)">${d.submitted_at || "—"}</td>
+                <td style="font-size:13px;color:var(--muted)">${d.supervisor_comment || "—"}</td>
+            </tr>`,
+        )
+        .join("");
+    }
+  });
+</script>
+{% endblock %}

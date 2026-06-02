@@ -1,0 +1,149 @@
+{% extends "base.html" %} {% block title %}Dokumenty{% endblock %} {% block
+page_title %}Moje dokumenty{% endblock %} {% block content %}
+<div id="no-internship" style="display: none">
+  <div class="empty-state">
+    <div class="empty-icon">⊡</div>
+    <p>Nie masz jeszcze zarejestrowanej praktyki.</p>
+  </div>
+</div>
+
+<div id="docs-section" style="display: none">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Wymagane dokumenty</span>
+    </div>
+    <table style="width: 100%">
+      <thead>
+        <tr>
+          <th>Załącznik</th>
+          <th>Opis</th>
+          <th>Status</th>
+          <th>Akcja</th>
+        </tr>
+      </thead>
+      <tbody id="required-docs"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  const STATUS_PL = {
+    draft: "Roboczy",
+    submitted: "Przesłany",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+
+  const REQUIRED_DOCS = [
+    {
+      type: "program_schedule",
+      name: "Program i harmonogram praktyki (Zał. 2a)",
+    },
+    { type: "card", name: "Karta praktyki zawodowej (Zał. 3)" },
+    {
+      type: "learning_outcomes",
+      name: "Potwierdzenie efektów uczenia się (Zał. 4)",
+    },
+    { type: "survey", name: "Kwestionariusz ankiety (Zał. 5)" },
+    { type: "diary", name: "Dziennik praktyki zawodowej (Zał. 6)" },
+    { type: "report", name: "Sprawozdanie z praktyki (Zał. 7)" },
+  ];
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      `/api/internships?student_id={{ current_user.id }}`,
+    );
+
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship").style.display = "block";
+      return;
+    }
+
+    const internshipId = internships[0].id;
+    document.getElementById("docs-section").style.display = "block";
+
+    const [docs, diary, report, survey, learningOutcomes, card, program] =
+      await Promise.all([
+        apiFetch(`/api/documents?internship_id=${internshipId}`),
+        apiFetch(`/api/diary/${internshipId}`),
+        apiFetch(`/api/reports/internship/${internshipId}`),
+        apiFetch(`/api/surveys/internship/${internshipId}`),
+        apiFetch(`/api/learning_outcomes/internship/${internshipId}`),
+        apiFetch(`/api/card/${internshipId}`).catch(() => null),
+        apiFetch(`/api/program_schedule/${internshipId}`).catch(() => null),
+      ]);
+
+    document.getElementById("required-docs").innerHTML = REQUIRED_DOCS.map(
+      (r) => {
+        let docStatus = null;
+
+        if (r.type === "program_schedule" && program) {
+          docStatus = program.status;
+        } else if (r.type === "diary" && diary && diary.status !== "draft") {
+          docStatus = diary.status;
+        } else if (r.type === "report" && report && report.status !== "draft") {
+          docStatus = report.status;
+        } else if (r.type === "survey" && survey && survey.submitted_at) {
+          docStatus = "approved";
+        } else if (
+          r.type === "learning_outcomes" &&
+          learningOutcomes &&
+          learningOutcomes.status !== "draft"
+        ) {
+          docStatus = learningOutcomes.status;
+        } else if (r.type === "card" && card && card.status !== "draft") {
+          docStatus = card.status;
+        } else {
+          const foundDoc = docs
+            ? docs.find((d) => d.doc_type === r.type && d.status !== "draft")
+            : null;
+          if (foundDoc) docStatus = foundDoc.status;
+        }
+
+        let statusBadge = '<span class="badge badge-draft">Brak</span>';
+
+        if (docStatus === "approved") {
+          statusBadge =
+            '<span class="badge badge-active">Gotowe do druku / pobrania</span>';
+        } else if (docStatus === "zopz_approved") {
+          statusBadge =
+            '<span class="badge badge-under_review">Oczekuje na UOPZ</span>';
+        } else if (docStatus === "submitted" || docStatus === "under_review") {
+          statusBadge = '<span class="badge badge-submitted">Przesłany</span>';
+        } else if (docStatus === "needs_revision") {
+          statusBadge =
+            '<span class="badge badge-cancelled">Odrzucone (Do poprawy)</span>';
+        }
+
+        const isDownloadable = docStatus === "approved";
+
+        return `
+          <tr>
+              <td style="font-family:monospace;font-size:13px;color:var(--muted);padding:10px 14px">${r.type}</td>
+              <td style="padding:10px 14px">${r.name}</td>
+              <td style="padding:10px 14px">${statusBadge}</td>
+              <td style="padding:10px 14px">
+                  <button class="btn btn-secondary btn-sm" onclick="downloadTemplate('${r.type}', '${internshipId}')" ${!isDownloadable ? "disabled" : ""}>
+                    Pobierz
+                  </button>
+              </td>
+          </tr>`;
+      },
+    ).join("");
+  });
+
+  let currentInternshipId = null;
+
+  currentInternshipId = internshipsData[0].id;
+
+  function downloadTemplate(docType, internshipId) {
+    if (!internshipId || internshipId === "undefined") {
+      alert("Błąd: Nie znaleziono ID praktyki. Odśwież stronę.");
+      return;
+    }
+    window.location.href = `/api/documents/download/${docType}/${internshipId}`;
+  }
+</script>
+{% endblock %}

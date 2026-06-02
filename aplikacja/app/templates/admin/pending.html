@@ -1,0 +1,123 @@
+{% extends "base.html" %} {% block title %}Konta oczekujące{% endblock %} {%
+block page_title %}Konta oczekujące na zatwierdzenie{% endblock %} {% block
+content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Konta do zatwierdzenia</span>
+  </div>
+  <div class="table-wrap">
+    <table id="pending-table">
+      <thead>
+        <tr>
+          <th>Imię i nazwisko</th>
+          <th>E-mail</th>
+          <th>Dostawca</th>
+          <th>Rola</th>
+          <th>Indeks (jeśli student)</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td
+            colspan="6"
+            style="text-align: center; color: var(--muted); padding: 24px"
+          >
+            Ładowanie...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  async function loadPending() {
+    const data = await apiFetch("/api/students/list/pending");
+    const tbody = document.querySelector("#pending-table tbody");
+    if (!data || data.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Brak kont oczekujących na zatwierdzenie</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data
+      .map(
+        (u) => `
+        <tr id="row-${u.id}">
+            <td style="font-weight:500">${u.first_name} ${u.last_name}</td>
+            <td style="color:var(--muted);font-size:13px">${u.email}</td>
+            <td><span class="badge badge-draft">${u.auth_provider || "google"}</span></td>
+            <td>
+                <select class="form-control" id="role-${u.id}" onchange="toggleIndex(${u.id})" style="width:180px">
+                    <option value="student">Student</option>
+                    <option value="uopz">Opiekun uczelniany</option>
+                    <option value="zopz">Opiekun zakładowy</option>
+                    <option value="sekretariat">Sekretariat</option>
+                    <option value="administrator">Administrator</option>
+                </select>
+            </td>
+            <td>
+                <input type="text" class="form-control" id="index-${u.id}"
+                    placeholder="np. 21230" maxlength="5" style="width:120px"
+                    title="Wymagany dla studenta">
+                <div style="font-size:11px;color:var(--danger);margin-top:2px;display:none" id="index-err-${u.id}">
+                    Wymagane 5 cyfr.
+                </div>
+            </td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-primary btn-sm" onclick="approve(${u.id})">Zatwierdź</button>
+                <button class="btn btn-danger btn-sm" onclick="reject(${u.id})">Odrzuć</button>
+            </td>
+        </tr>`,
+      )
+      .join("");
+  }
+
+  function toggleIndex(id) {
+    const role = document.getElementById(`role-${id}`).value;
+    const input = document.getElementById(`index-${id}`);
+    input.style.opacity = role === "student" ? "1" : "0.3";
+    input.disabled = role !== "student";
+  }
+
+  async function approve(id) {
+    const role = document.getElementById(`role-${id}`).value;
+    const index = document.getElementById(`index-${id}`).value.trim();
+    const err = document.getElementById(`index-err-${id}`);
+
+    if (role === "student") {
+      if (!/^\d{5}$/.test(index)) {
+        err.style.display = "block";
+        document.getElementById(`index-${id}`).classList.add("error");
+        return;
+      }
+      err.style.display = "none";
+      document.getElementById(`index-${id}`).classList.remove("error");
+    }
+
+    const body = { role };
+    if (role === "student") body.index_number = index;
+
+    const result = await apiPut(`/api/students/${id}/approve`, body);
+    if (result) {
+      document.getElementById(`row-${id}`).remove();
+      const tbody = document.querySelector("#pending-table tbody");
+      if (!tbody.children.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Brak kont oczekujących</td></tr>';
+      }
+    } else {
+      alert(lastError || "Błąd podczas zatwierdzania.");
+    }
+  }
+
+  async function reject(id) {
+    if (!confirm("Czy na pewno odrzucić i usunąć to konto?")) return;
+    const ok = await apiDelete(`/api/students/${id}`);
+    if (ok) loadPending();
+  }
+
+  loadPending();
+</script>
+{% endblock %}

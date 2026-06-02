@@ -1,0 +1,1279 @@
+{% extends "base.html" %} {% block title %}Praktyki{% endblock %} {% block
+page_title %}Lista praktyk{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Praktyki</span>
+    <input
+      type="text"
+      class="form-control"
+      id="search"
+      placeholder="Szukaj po firmie lub indeksie..."
+      style="width: 260px"
+    />
+  </div>
+  <div class="table-wrap">
+    <table id="internships-table">
+      <thead>
+        <tr>
+          <th>Indeks</th>
+          <th>Firma</th>
+          <th>Okres</th>
+          <th>Status</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td
+            colspan="5"
+            style="text-align: center; color: var(--muted); padding: 24px"
+          >
+            Ładowanie...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="detail-panel" style="display: none">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" id="detail-title">Szczegóły praktyki</span>
+      <button class="btn btn-secondary btn-sm" onclick="closeDetail()">
+        Zamknij ×
+      </button>
+    </div>
+
+    <table style="width: 100%; margin-bottom: 24px">
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            width: 200px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Student
+        </td>
+        <td
+          style="
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+          "
+          id="d-student"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Firma
+        </td>
+        <td
+          style="padding: 8px 0; border-bottom: 1px solid var(--border)"
+          id="d-company"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Adres
+        </td>
+        <td
+          style="padding: 8px 0; border-bottom: 1px solid var(--border)"
+          id="d-address"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td
+          style="
+            color: var(--muted);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+          "
+        >
+          Okres
+        </td>
+        <td
+          style="padding: 8px 0; border-bottom: 1px solid var(--border)"
+          id="d-period"
+        >
+          —
+        </td>
+      </tr>
+      <tr>
+        <td style="color: var(--muted); padding: 8px 0">Status ogólny</td>
+        <td style="padding: 8px 0" id="d-status">—</td>
+      </tr>
+    </table>
+
+    <div id="view-program" style="display: none; padding: 20px">
+      <div
+        style="
+          font-size: 16px;
+          font-weight: 700;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #ddd;
+          padding-bottom: 10px;
+        "
+      >
+        Program i Harmonogram Praktyki (Zał. 2a)
+        <span id="prog-badge" class="badge" style="float: right"></span>
+      </div>
+
+      <table
+        class="table table-bordered"
+        style="width: 100%; margin-bottom: 30px"
+      >
+        <thead style="background: #f8f9fa">
+          <tr>
+            <th style="width: 50px">Nr</th>
+            <th>Efekt kształcenia</th>
+            <th>Dział / Prace praktykanta</th>
+          </tr>
+        </thead>
+        <tbody id="prog-tasks-body"></tbody>
+      </table>
+
+      <table class="table table-bordered" style="width: 100%">
+        <thead style="background: #f8f9fa">
+          <tr>
+            <th>L.p.</th>
+            <th>Dział / komórka</th>
+            <th>Liczba dni</th>
+          </tr>
+        </thead>
+        <tbody id="prog-schedule-body"></tbody>
+        <tfoot>
+          <tr style="font-weight: bold; background: #eee">
+            <td colspan="2" style="text-align: right">Łącznie:</td>
+            <td id="prog-sum-days">0 / 120</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="form-group" style="margin-bottom: 15px">
+        <label class="form-label" style="font-weight: bold"
+          >Data uzgodnienia programu</label
+        >
+        <input
+          type="date"
+          id="agreed_date"
+          class="form-control"
+          style="width: 200px"
+        />
+      </div>
+
+      {% if current_user.role == 'uopz' %}
+      <div
+        id="uopz-prog-actions"
+        style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px"
+      >
+        <label>Uwagi UOPZ:</label>
+        <textarea id="uopz-prog-comment" class="form-control mb-2"></textarea>
+        <button class="btn btn-primary" onclick="reviewProgram('approved')">
+          Zatwierdź dokument
+        </button>
+        <button
+          class="btn btn-danger"
+          onclick="reviewProgram('needs_revision')"
+        >
+          Odrzuć do poprawy
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
+    <div id="view-diary" style="display: none">
+      <div
+        style="
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border);
+        "
+      >
+        Dziennik praktyki {% if current_user.role == 'zopz' %}
+        <span
+          style="
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--muted);
+            margin-left: 8px;
+          "
+          >— możesz potwierdzać i odrzucać wpisy</span
+        >
+        {% endif %}
+      </div>
+      <div class="table-wrap" style="margin-bottom: 32px">
+        <table id="diary-table">
+          <thead>
+            <tr>
+              <th>Dzień</th>
+              <th>Data</th>
+              <th>Opis prac</th>
+              <th>Efekty</th>
+              <th>Status ZOPZ</th>
+              {% if current_user.role == 'zopz' %}
+              <th>Akcje ZOPZ</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody id="diary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="view-report" style="display: none">
+      <div
+        style="
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border);
+        "
+      >
+        Sprawozdanie (Zał. 7)
+        <span
+          id="report-badge"
+          class="badge"
+          style="margin-left: 12px; display: none"
+        ></span>
+      </div>
+      <div
+        id="report-empty"
+        style="
+          text-align: center;
+          color: var(--muted);
+          padding: 24px;
+          display: none;
+        "
+      >
+        Brak sprawozdania do weryfikacji.
+      </div>
+      <div id="report-content" style="display: none">
+        <div style="margin-bottom: 16px">
+          <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px">
+            1. Zakład pracy
+          </div>
+          <div
+            id="r-company"
+            style="
+              padding: 12px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              white-space: pre-wrap;
+            "
+          ></div>
+        </div>
+        <div style="margin-bottom: 16px">
+          <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px">
+            2. Opis prac
+          </div>
+          <div
+            id="r-work"
+            style="
+              padding: 12px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              white-space: pre-wrap;
+            "
+          ></div>
+        </div>
+        <div style="margin-bottom: 16px">
+          <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px">
+            3. Wnioski
+          </div>
+          <div
+            id="r-self"
+            style="
+              padding: 12px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              white-space: pre-wrap;
+            "
+          ></div>
+        </div>
+        {% if current_user.role == 'zopz' %}
+        <div style="display: flex; gap: 8px; margin-top: 16px">
+          <button
+            class="btn btn-primary"
+            id="btn-report-approve"
+            onclick="reviewReport('approved')"
+          >
+            Zatwierdź
+          </button>
+          <button
+            class="btn btn-danger"
+            id="btn-report-reject"
+            onclick="reviewReport('needs_revision')"
+          >
+            Odrzuć do poprawy
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div id="view-effects" style="display: none">
+      <div
+        style="
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border);
+        "
+      >
+        Efekty uczenia się (Zał. 4)
+        <span
+          id="effects-badge"
+          class="badge"
+          style="margin-left: 12px; display: none"
+        ></span>
+      </div>
+
+      <div id="effects-alert" style="display: none; margin-bottom: 16px"></div>
+      <div class="alert alert-info" id="effects-role-info">
+        Trwa ładowanie uprawnień...
+      </div>
+
+      <div class="table-wrap" style="margin-bottom: 24px; overflow-x: auto">
+        <table style="width: 100%; border-collapse: collapse">
+          <thead>
+            <tr
+              style="
+                background-color: var(--bg-color);
+                text-align: left;
+                font-size: 13px;
+              "
+            >
+              <th style="padding: 12px; width: 5%">Nr</th>
+              <th style="padding: 12px; width: 65%">Efekt uczenia się</th>
+              <th style="padding: 12px; text-align: center">Uzyskał</th>
+              <th style="padding: 12px; text-align: center">Nie uzyskał</th>
+            </tr>
+          </thead>
+          <tbody id="effects-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 24px">
+        <label class="form-label" style="font-weight: bold"
+          >Opinia opiekuna uczelnianego (UOPZ)</label
+        >
+        <textarea
+          class="form-control"
+          id="effects-uopz-comment"
+          rows="4"
+          disabled
+        ></textarea>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 16px">
+        <button
+          class="btn btn-primary"
+          id="btn-effects-zopz"
+          style="display: none"
+          onclick="submitEffectsZopz()"
+        >
+          Przekaż do UOPZ
+        </button>
+        <button
+          class="btn btn-success"
+          id="btn-effects-uopz-approve"
+          style="display: none"
+          onclick="reviewEffectsUopz('approved')"
+        >
+          Zatwierdź dokument
+        </button>
+        <button
+          class="btn btn-danger"
+          id="btn-effects-uopz-reject"
+          style="display: none"
+          onclick="reviewEffectsUopz('needs_revision')"
+        >
+          Odrzuć do poprawy
+        </button>
+      </div>
+    </div>
+
+    <div id="view-card" style="display: none">
+      <div
+        style="
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border);
+        "
+      >
+        Karta Praktyki (Zaświadczenie i Oceny)
+        <span
+          id="card-badge"
+          class="badge"
+          style="margin-left: 12px; display: none"
+        ></span>
+      </div>
+
+      <div
+        class="alert alert-info"
+        id="card-role-info"
+        style="display: none"
+      ></div>
+
+      {% if current_user.role == 'zopz' %}
+      <div id="card-zopz-form">
+        <div class="form-group" style="width: 250px">
+          <label class="form-label" style="font-weight: bold"
+            >Ocena parametryczna ZOPZ (w skali 2 do 5)</label
+          >
+          <select id="zopz_grade" class="form-control">
+            <option value="">-- wybierz --</option>
+            <option value="2">2.0</option>
+            <option value="3">3.0</option>
+            <option value="3.5">3.5</option>
+            <option value="4">4.0</option>
+            <option value="4.5">4.5</option>
+            <option value="5">5.0</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight: bold"
+            >Ocena opisowa ZOPZ</label
+          >
+          <textarea
+            id="zopz_comment"
+            class="form-control"
+            rows="4"
+            placeholder="Wpisz uwagi i ocenę opisową dotyczącą praktykanta..."
+          ></textarea>
+        </div>
+        <div class="form-group" style="width: 250px">
+          <label class="form-label" style="font-weight: bold"
+            >Data wystawienia zaświadczenia</label
+          >
+          <input type="date" id="zopz_date" class="form-control" />
+        </div>
+        <div style="margin-top: 20px">
+          <button
+            class="btn btn-primary"
+            id="btn-card-zopz"
+            onclick="saveZopzCard()"
+          >
+            Zapisz i przekaż do UOPZ
+          </button>
+        </div>
+      </div>
+
+      {% elif current_user.role == 'uopz' %}
+      <div id="card-uopz-view">
+        <h5
+          style="
+            margin-top: 15px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+          "
+        >
+          Część Zakładowego Opiekuna (ZOPZ)
+        </h5>
+        <div class="form-group">
+          <label
+            class="form-label"
+            style="font-weight: bold; color: var(--muted)"
+            >Ocena parametryczna ZOPZ</label
+          >
+          <div
+            id="uopz-view-zopz-grade"
+            style="
+              padding: 10px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              font-weight: bold;
+            "
+          >
+            —
+          </div>
+        </div>
+        <div class="form-group">
+          <label
+            class="form-label"
+            style="font-weight: bold; color: var(--muted)"
+            >Ocena opisowa ZOPZ</label
+          >
+          <div
+            id="uopz-view-comment"
+            style="
+              padding: 12px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+              white-space: pre-wrap;
+              min-height: 60px;
+            "
+          ></div>
+        </div>
+        <div class="form-group">
+          <label
+            class="form-label"
+            style="font-weight: bold; color: var(--muted)"
+            >Data wystawienia przez ZOPZ</label
+          >
+          <div
+            id="uopz-view-date"
+            style="
+              padding: 12px;
+              background: #f8f9fa;
+              border: 1px solid var(--border);
+              border-radius: 4px;
+            "
+          ></div>
+        </div>
+
+        <h5
+          style="
+            margin-top: 30px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+          "
+        >
+          Twoja ocena (UOPZ)
+        </h5>
+
+        <div class="form-group" style="width: 250px">
+          <label class="form-label" style="font-weight: bold"
+            >Ocena parametryczna UOPZ (2 do 5)</label
+          >
+          <select id="uopz_grade" class="form-control">
+            <option value="">-- wybierz --</option>
+            <option value="2">2.0</option>
+            <option value="3">3.0</option>
+            <option value="3.5">3.5</option>
+            <option value="4">4.0</option>
+            <option value="4.5">4.5</option>
+            <option value="5">5.0</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight: bold"
+            >Ocena opisowa UOPZ</label
+          >
+          <textarea
+            id="uopz_comment"
+            class="form-control"
+            rows="4"
+            placeholder="Wpisz ocenę opisową uczelnianego opiekuna..."
+          ></textarea>
+        </div>
+        <div class="form-group" style="width: 250px">
+          <label class="form-label" style="font-weight: bold"
+            >Ocena sprawozdania z praktyki (2 do 5)</label
+          >
+          <select id="report_grade" class="form-control">
+            <option value="">-- wybierz --</option>
+            <option value="2">2.0</option>
+            <option value="3">3.0</option>
+            <option value="3.5">3.5</option>
+            <option value="4">4.0</option>
+            <option value="4.5">4.5</option>
+            <option value="5">5.0</option>
+          </select>
+        </div>
+
+        <div
+          id="card-uopz-actions"
+          style="display: flex; gap: 8px; margin-top: 25px; display: none"
+        >
+          <button class="btn btn-primary" onclick="reviewCardUopz('approved')">
+            Zatwierdź zaświadczenie
+          </button>
+          <button
+            class="btn btn-danger"
+            onclick="reviewCardUopz('needs_revision')"
+          >
+            Odrzuć do poprawy
+          </button>
+        </div>
+      </div>
+
+      {% else %}
+      <div class="alert alert-info">
+        Tylko ZOPZ lub UOPZ ma możliwość podglądu lub edycji tych danych.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  const STATUS_PL = {
+    pending: "Oczekująca",
+    active: "W trakcie",
+    completed: "Zakończona",
+    cancelled: "Anulowana",
+  };
+  const DOC_STATUS_PL = {
+    draft: "Brak / Roboczy",
+    submitted: "Przesłany / Oczekuje na UOPZ",
+    zopz_approved: "Oczekuje na UOPZ",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+  const OUTCOMES = [
+    "Ma wiedzę na temat sposobu realizacji zadań inżynierskich dotyczących informatyki z zachowaniem standardów i norm technicznych",
+    "Zna technologie, narzędzia, metody, techniki oraz sprzęt stosowane w informatyce",
+    "Zna ekonomiczne, prawne skutki własnych działań podejmowanych w ramach praktyki oraz ograniczenia wynikające z prawa autorskiego i kodeksu pracy",
+    "Zna zasady bezpieczeństwa pracy i ergonomii w zawodzie informatyka",
+    "Pozyskuje informacje odnośnie technologii, metod, technik, sprzętu wymaganego do realizacji powierzonego zadania...",
+    "W oparciu o kontakty ze środowiskiem inżynierskim zakładu, potrafi podnieść swoje kompetencje, wiedzę i umiejętności...",
+    "Opracowuje dokumentację dotyczącą realizacji podejmowanych zadań w ramach praktyki...",
+    "Potrafi zidentyfikować problem informatyczny występujący w zakładzie pracy / instytucji...",
+    "Potrafi rozwiązać rzeczywiste zadanie inżynierskie z zakresu działalności informatycznej zakładu pracy/instytucji...",
+    "Pracuje w zespole zajmującym się zawodowo branżą IT",
+    "Przestrzega zasad etyki zawodowej i zgodnie z tymi zasadami korzysta z wiedzy i pomocy doświadczonych kolegów",
+    "Kontaktując się z osobami spoza branży potrafi zarówno pozyskać od nich niezbędne informacje...",
+    "Dostrzega w praktyce tempo deaktualizacji wiedzy informatycznej oraz skutki działalności informatyków...",
+  ];
+
+  let allInternships = [];
+  let studentMap = {};
+  let currentInternshipId = null;
+  let currentReportId = null;
+  let currentEffectsFormId = null;
+  const userRole = "{{ current_user.role }}";
+  const isZopz = userRole === "zopz";
+
+  async function load() {
+    const [internships, students] = await Promise.all([
+      apiFetch("/api/internships"),
+      apiFetch("/api/students"),
+    ]);
+    if (!internships) return;
+    if (students) students.forEach((s) => (studentMap[s.id] = s));
+    allInternships = internships.map((i) => ({
+      ...i,
+      student_index: studentMap[i.student_id]?.index_number || i.student_id,
+      student_name: studentMap[i.student_id]
+        ? `${studentMap[i.student_id].first_name} ${studentMap[i.student_id].last_name}`
+        : `ID: ${i.student_id}`,
+    }));
+    renderTable(allInternships);
+    renderEffectsTableBase();
+  }
+
+  function renderTable(data) {
+    const tbody = document.querySelector("#internships-table tbody");
+    if (data.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Brak praktyk</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data
+      .map(
+        (i) => `
+        <tr>
+            <td style="font-weight:500">${i.student_index}</td>
+            <td>${i.company_name}</td>
+            <td style="font-size:13px;color:var(--muted)">${i.start_date} — ${i.end_date}</td>
+            <td><span class="badge badge-${i.status}">${STATUS_PL[i.status] || i.status}</span></td>
+            <td>
+                <div style="display: flex; gap: 4px;">
+                    <button class="btn btn-secondary btn-sm" onclick="openSection(${i.id}, 'diary')">Dziennik</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openSection(${i.id}, 'effects')">Efekty uczenia</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openSection(${i.id}, 'report')">Sprawozdanie</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openSection(${i.id}, 'card')">Karta Praktyki</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openSection(${i.id}, 'program')">Program i harmonogram</button>
+                </div>
+            </td>
+        </tr>`,
+      )
+      .join("");
+  }
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    renderTable(
+      allInternships.filter(
+        (i) =>
+          i.company_name.toLowerCase().includes(q) ||
+          String(i.student_index).includes(q) ||
+          i.student_name.toLowerCase().includes(q),
+      ),
+    );
+  });
+
+  async function openSection(internshipId, sectionType) {
+    currentInternshipId = internshipId;
+    document.getElementById("detail-panel").style.display = "block";
+
+    const views = [
+      "view-diary",
+      "view-report",
+      "view-effects",
+      "view-card",
+      "view-program",
+    ];
+    views.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+
+    document.getElementById("prog-tasks-body").innerHTML = "";
+    document.getElementById("prog-schedule-body").innerHTML = "";
+    document.getElementById("diary-tbody").innerHTML = "";
+    document.getElementById("effects-tbody").innerHTML = "";
+
+    const target = document.getElementById(`view-${sectionType}`);
+    if (target) target.style.display = "block";
+
+    if (sectionType === "diary") await loadDiary(internshipId);
+    if (sectionType === "effects") await loadEffects(internshipId);
+    if (sectionType === "card") await loadCard(internshipId);
+    if (sectionType === "program") await loadProgram(internshipId);
+    if (sectionType === "report") await loadReport(internshipId);
+  }
+
+  async function loadCard(internshipId) {
+    if (userRole !== "zopz" && userRole !== "uopz") return;
+
+    const badge = document.getElementById("card-badge");
+    const infoBox = document.getElementById("card-role-info");
+
+    infoBox.style.display = "none";
+
+    const cardData = await apiFetch(`/api/card/${internshipId}`).catch(
+      () => null,
+    );
+    let status = cardData && cardData.status ? cardData.status : "draft";
+
+    badge.textContent = DOC_STATUS_PL[status] || status;
+    badge.className = `badge badge-${status === "draft" ? "draft" : status === "approved" ? "active" : status === "needs_revision" ? "cancelled" : "under_review"}`;
+    badge.style.display = "inline-flex";
+
+    if (isZopz) {
+      const gradeInput = document.getElementById("zopz_grade");
+      const commentInput = document.getElementById("zopz_comment");
+      const dateInput = document.getElementById("zopz_date");
+      const btnSave = document.getElementById("btn-card-zopz");
+
+      gradeInput.value = cardData ? cardData.zopz_grade || "" : "";
+      commentInput.value = cardData ? cardData.zopz_comment || "" : "";
+      dateInput.value = cardData ? cardData.date || "" : "";
+
+      if (
+        status === "submitted" ||
+        status === "zopz_approved" ||
+        status === "approved"
+      ) {
+        infoBox.textContent =
+          "Zaświadczenie zostało przekazane do UOPZ. Edycja jest zablokowana.";
+        infoBox.className = "alert alert-success";
+        infoBox.style.display = "block";
+        gradeInput.disabled = true;
+        commentInput.disabled = true;
+        dateInput.disabled = true;
+        btnSave.style.display = "none";
+      } else {
+        infoBox.textContent =
+          "Wypełnij ocenę parametryczną, ocenę opisową oraz datę, a następnie przekaż dokument do UOPZ.";
+        infoBox.className = "alert alert-info";
+        infoBox.style.display = "block";
+        gradeInput.disabled = false;
+        commentInput.disabled = false;
+        dateInput.disabled = false;
+        btnSave.style.display = "block";
+      }
+    } else if (userRole === "uopz") {
+      document.getElementById("uopz-view-zopz-grade").textContent =
+        cardData && cardData.zopz_grade ? cardData.zopz_grade : "—";
+      document.getElementById("uopz-view-comment").textContent =
+        cardData && cardData.zopz_comment ? cardData.zopz_comment : "—";
+      document.getElementById("uopz-view-date").textContent =
+        cardData && cardData.date ? cardData.date : "—";
+
+      const uopzGradeInput = document.getElementById("uopz_grade");
+      const uopzCommentInput = document.getElementById("uopz_comment");
+      const reportGradeInput = document.getElementById("report_grade");
+      const actionsBox = document.getElementById("card-uopz-actions");
+
+      uopzGradeInput.value = cardData ? cardData.uopz_grade || "" : "";
+      uopzCommentInput.value = cardData ? cardData.uopz_comment || "" : "";
+      reportGradeInput.value = cardData ? cardData.report_grade || "" : "";
+
+      if (status === "submitted" || status === "zopz_approved") {
+        infoBox.textContent =
+          "ZOPZ przekazał zaświadczenie i swoją ocenę. Wystaw swoje oceny i zatwierdź dokument.";
+        infoBox.className = "alert alert-info";
+        infoBox.style.display = "block";
+        actionsBox.style.display = "flex";
+        uopzGradeInput.disabled = false;
+        uopzCommentInput.disabled = false;
+        reportGradeInput.disabled = false;
+      } else if (status === "approved") {
+        infoBox.textContent =
+          "Zatwierdziłeś to zaświadczenie i wystawiłeś oceny końcowe.";
+        infoBox.className = "alert alert-success";
+        infoBox.style.display = "block";
+        actionsBox.style.display = "none";
+        uopzGradeInput.disabled = true;
+        uopzCommentInput.disabled = true;
+        reportGradeInput.disabled = true;
+      } else if (status === "needs_revision") {
+        infoBox.textContent =
+          "Odrzuciłeś ten dokument. Czekasz na poprawienie przez ZOPZ.";
+        infoBox.className = "alert alert-warning";
+        infoBox.style.display = "block";
+        actionsBox.style.display = "none";
+        uopzGradeInput.disabled = true;
+        uopzCommentInput.disabled = true;
+        reportGradeInput.disabled = true;
+      } else {
+        infoBox.textContent =
+          "Czekasz na uzupełnienie zaświadczenia przez ZOPZ.";
+        infoBox.className = "alert alert-warning";
+        infoBox.style.display = "block";
+        actionsBox.style.display = "none";
+        uopzGradeInput.disabled = true;
+        uopzCommentInput.disabled = true;
+        reportGradeInput.disabled = true;
+      }
+    }
+  }
+
+  async function saveZopzCard() {
+    const grade = document.getElementById("zopz_grade").value;
+    const comment = document.getElementById("zopz_comment").value.trim();
+    const dateVal = document.getElementById("zopz_date").value;
+
+    if (!grade || !comment || !dateVal) {
+      alert(
+        "Wypełnij ocenę parametryczną, ocenę opisową oraz datę przed przekazaniem!",
+      );
+      return;
+    }
+
+    if (
+      !confirm(
+        "Czy na pewno chcesz zapisać i przekazać dokument do UOPZ? Po przekazaniu stracisz możliwość edycji.",
+      )
+    ) {
+      return;
+    }
+
+    const payload = {
+      zopz_grade: grade,
+      zopz_comment: comment,
+      date: dateVal,
+      status: "submitted",
+    };
+
+    const response = await apiPut(
+      `/api/card/zopz/${currentInternshipId}`,
+      payload,
+    );
+
+    if (response) {
+      alert("Zaświadczenie oraz ocena ZOPZ zostały przekazane do UOPZ!");
+      await loadCard(currentInternshipId);
+    }
+  }
+
+  async function reviewCardUopz(newStatus) {
+    const uGrade = document.getElementById("uopz_grade").value;
+    const uComment = document.getElementById("uopz_comment").value.trim();
+    const rGrade = document.getElementById("report_grade").value;
+
+    if (newStatus === "approved" && (!uGrade || !uComment || !rGrade)) {
+      alert(
+        "BŁĄD: Przed zatwierdzeniem dokumentu musisz uzupełnić wszystkie 3 swoje oceny (parametryczną, opisową oraz sprawozdania)!",
+      );
+      return;
+    }
+
+    const akcja =
+      newStatus === "approved" ? "Zatwierdzić" : "Odrzucić do poprawy";
+    if (
+      !confirm(`Czy na pewno chcesz ${akcja.toLowerCase()} to zaświadczenie?`)
+    )
+      return;
+
+    const payload = {
+      status: newStatus,
+      uopz_grade: uGrade,
+      uopz_comment: uComment,
+      report_grade: rGrade,
+    };
+
+    const response = await apiPut(
+      `/api/card/status/${currentInternshipId}`,
+      payload,
+    );
+
+    if (response) {
+      alert(
+        `Zaświadczenie zostało ${newStatus === "approved" ? "zatwierdzone" : "odrzucone"}.`,
+      );
+      await loadCard(currentInternshipId);
+    }
+  }
+
+  async function loadDiary(internshipId) {
+    const data = await apiFetch(`/api/diary/${internshipId}`);
+    const tbody = document.getElementById("diary-tbody");
+    if (!data || !data.entries || data.entries.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${isZopz ? 6 : 5}" style="text-align:center;color:var(--muted);padding:24px">Brak wpisów w dzienniku</td></tr>`;
+      return;
+    }
+    const entries = [...data.entries].sort(
+      (a, b) => a.day_number - b.day_number,
+    );
+    tbody.innerHTML = entries
+      .map((e) => {
+        let zopzStatus = '<span class="badge badge-draft">Oczekuje</span>';
+        if (e.confirmed_by_zopz)
+          zopzStatus = '<span class="badge badge-active">✓ Potwierdzono</span>';
+        else if (data.status === "submitted" || data.status === "under_review")
+          zopzStatus =
+            '<span class="badge badge-draft">Oczekuje weryfikacji</span>';
+        else if (e.is_rejected)
+          zopzStatus = '<span class="badge badge-cancelled">X Odrzucono</span>';
+        let confirmBtn = isZopz
+          ? `<td><div style="display:flex;gap:4px"><button class="btn btn-primary btn-sm" ${e.confirmed_by_zopz ? "disabled" : ""} onclick="confirmEntry(${e.id}, 'confirm')">Potwierdź</button><button class="btn btn-danger btn-sm" ${e.is_rejected ? "disabled" : ""} onclick="confirmEntry(${e.id}, 'reject')">Odrzuć</button></div></td>`
+          : "";
+        return `<tr id="entry-${e.id}"><td style="font-weight:500;color:var(--muted)">${String(e.day_number).padStart(2, "0")}</td><td style="font-size:13px">${e.work_date}</td><td style="max-width:300px">${e.description}</td><td style="font-size:13px;color:var(--muted)">${e.outcome_numbers || "—"}</td><td>${zopzStatus}</td>${confirmBtn}</tr>`;
+      })
+      .join("");
+  }
+
+  async function confirmEntry(entryId, actionType) {
+    const result = await apiPut(`/api/diary/entries/${entryId}/confirm`, {
+      action: actionType,
+    });
+    if (result) await loadDiary(currentInternshipId);
+  }
+
+  async function loadProgram(internshipId) {
+    const data = await apiFetch(`/api/internships/${internshipId}/program`);
+    const dateInput = document.getElementById("agreed_date");
+
+    if (data.agreed_date) {
+      const dateObj = new Date(data.agreed_date);
+      const formattedDate = dateObj.toISOString().split("T")[0];
+      dateInput.value = formattedDate;
+    } else {
+      dateInput.value = "";
+    }
+    const tasksBody = document.getElementById("prog-tasks-body");
+    const schedBody = document.getElementById("prog-schedule-body");
+    const sumCell = document.getElementById("prog-sum-days");
+    const actions = document.getElementById("uopz-prog-actions");
+    const commentInput = document.getElementById("uopz-prog-comment");
+
+    dateInput.value = data.agreed_date ? data.agreed_date.split("T")[0] : "";
+    commentInput.value = data.uopz_comment || "";
+
+    tasksBody.innerHTML = OUTCOMES.map(
+      (txt, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+            <td style="font-size: 12px;">${txt}</td>
+            <td>${data.program_tasks.find((t) => t.outcome_number === idx + 1)?.description || "---"}</td>
+        </tr>
+    `,
+    ).join("");
+
+    const totalDays = data.entries.reduce(
+      (a, b) => a + parseInt(b.planned_days),
+      0,
+    );
+    schedBody.innerHTML = data.entries
+      .map(
+        (e) => `
+        <tr><td>${e.lp}</td><td>${e.department}</td><td>${e.planned_days}</td></tr>
+    `,
+      )
+      .join("");
+
+    sumCell.textContent = `${totalDays} / 120`;
+    sumCell.style.color = totalDays === 120 ? "green" : "red";
+
+    const isApproved = data.status === "approved";
+
+    dateInput.disabled = isApproved;
+    commentInput.disabled = isApproved;
+
+    const oldAlert = document.getElementById("approval-info");
+    if (oldAlert) oldAlert.remove();
+
+    if (isApproved) {
+      if (actions) actions.style.display = "none";
+
+      const displayDate = data.agreed_date
+        ? new Date(data.agreed_date).toLocaleDateString("pl-PL")
+        : "brak daty";
+
+      const infoDiv = document.createElement("div");
+      infoDiv.id = "approval-info";
+      infoDiv.className = "alert alert-success";
+      infoDiv.innerHTML = `<strong>Zatwierdzono!</strong> Data uzgodnienia programu: ${displayDate}`;
+
+      const container = document.getElementById("view-program");
+      container.insertBefore(infoDiv, actions);
+    } else {
+      if (actions) {
+        actions.style.display =
+          userRole === "uopz" && data.status === "submitted" ? "block" : "none";
+      }
+    }
+  }
+
+  async function reviewProgram(newStatus) {
+    const comment = document.getElementById("uopz-prog-comment").value;
+    const dateInput = document.getElementById("agreed_date");
+
+    const res = await apiPut(
+      `/api/internships/${currentInternshipId}/program/status`,
+      {
+        status: newStatus,
+        comment: comment,
+        agreed_date: dateInput.value || null,
+      },
+    );
+
+    if (res) {
+      alert("Zaktualizowano status.");
+      loadProgram(currentInternshipId);
+    }
+  }
+
+  async function loadReport(internshipId) {
+    const reportEmpty = document.getElementById("report-empty");
+    const reportContent = document.getElementById("report-content");
+    const badge = document.getElementById("report-badge");
+    const report = await apiFetch(`/api/reports/internship/${internshipId}`);
+    if (!report || !report.id || report.status === "draft") {
+      reportEmpty.style.display = "block";
+      reportContent.style.display = "none";
+      badge.style.display = "none";
+      currentReportId = null;
+      return;
+    }
+    currentReportId = report.id;
+    reportEmpty.style.display = "none";
+    reportContent.style.display = "block";
+    badge.textContent = DOC_STATUS_PL[report.status] || report.status;
+    badge.className = `badge badge-${report.status === "needs_revision" ? "cancelled" : report.status}`;
+    badge.style.display = "inline-flex";
+    document.getElementById("r-company").textContent =
+      report.company_description || "Brak danych";
+    document.getElementById("r-work").textContent =
+      report.work_description || "Brak danych";
+    document.getElementById("r-self").textContent =
+      report.self_assessment || "Brak danych";
+    if (isZopz) {
+      document.getElementById("btn-report-approve").disabled =
+        report.status === "approved";
+      document.getElementById("btn-report-reject").disabled =
+        report.status === "needs_revision";
+    }
+  }
+
+  async function reviewReport(newStatus) {
+    if (!currentReportId) return;
+    const result = await apiPut(`/api/reports/${currentReportId}`, {
+      status: newStatus,
+    });
+    if (result) await loadReport(currentInternshipId);
+  }
+
+  function renderEffectsTableBase() {
+    document.getElementById("effects-tbody").innerHTML = OUTCOMES.map(
+      (q, idx) => {
+        const n = idx + 1;
+        return `<tr style="border-bottom: 1px solid var(--border);"><td style="padding: 12px; font-weight: bold;">${n < 10 ? "0" + n : n}</td><td style="padding: 12px; font-size: 13px;">${q}</td><td style="text-align: center; padding: 12px;"><input type="radio" name="ef_${n}" value="1" disabled></td><td style="text-align: center; padding: 12px;"><input type="radio" name="ef_${n}" value="0" disabled></td></tr>`;
+      },
+    ).join("");
+  }
+
+  function showEffectsAlert(type, msg) {
+    const el = document.getElementById("effects-alert");
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    el.style.display = "block";
+    setTimeout(() => (el.style.display = "none"), 5000);
+  }
+
+  async function loadEffects(internshipId) {
+    document
+      .querySelectorAll('#effects-tbody input[type="radio"]')
+      .forEach((el) => {
+        el.checked = false;
+        el.disabled = true;
+      });
+    document.getElementById("effects-uopz-comment").value = "";
+    document.getElementById("effects-uopz-comment").disabled = true;
+    document.getElementById("btn-effects-zopz").style.display = "none";
+    document.getElementById("btn-effects-uopz-approve").style.display = "none";
+    document.getElementById("btn-effects-uopz-reject").style.display = "none";
+
+    const formData = await apiFetch(
+      `/api/learning_outcomes/internship/${internshipId}`,
+    );
+    let currentStatus = formData && formData.id ? formData.status : "draft";
+    currentEffectsFormId = formData && formData.id ? formData.id : null;
+
+    const badge = document.getElementById("effects-badge");
+    badge.textContent = DOC_STATUS_PL[currentStatus] || currentStatus;
+    let badgeColor =
+      currentStatus === "draft"
+        ? "draft"
+        : currentStatus === "approved"
+          ? "active"
+          : currentStatus === "needs_revision"
+            ? "cancelled"
+            : "under_review";
+    badge.className = `badge badge-${badgeColor}`;
+    badge.style.display = "inline-flex";
+
+    const infoBox = document.getElementById("effects-role-info");
+    const uopzCommentBox = document.getElementById("effects-uopz-comment");
+
+    if (formData && formData.items) {
+      formData.items.forEach((item) => {
+        const radio = document.querySelector(
+          `input[name="ef_${item.outcome_number}"][value="${item.achieved ? "1" : "0"}"]`,
+        );
+        if (radio) radio.checked = true;
+      });
+      uopzCommentBox.value = formData.supervisor_comment_general || "";
+    }
+
+    if (userRole === "zopz") {
+      if (currentStatus === "draft" || currentStatus === "needs_revision") {
+        infoBox.textContent =
+          "Zaznacz efekty uzyskane przez studenta i przekaż do UOPZ.";
+        infoBox.className = "alert alert-info";
+        document
+          .querySelectorAll('#effects-tbody input[type="radio"]')
+          .forEach((el) => (el.disabled = false));
+        document.getElementById("btn-effects-zopz").style.display = "block";
+      } else {
+        infoBox.textContent =
+          "Formularz został przekazany dalej. Edycja zablokowana.";
+        infoBox.className = "alert alert-warning";
+      }
+    } else if (userRole === "uopz") {
+      if (currentStatus === "zopz_approved") {
+        infoBox.textContent =
+          "ZOPZ ocenił efekty. Wprowadź swoją opinię i zdecyduj o dokumencie.";
+        infoBox.className = "alert alert-info";
+        uopzCommentBox.disabled = false;
+        document.getElementById("btn-effects-uopz-approve").style.display =
+          "block";
+        document.getElementById("btn-effects-uopz-reject").style.display =
+          "block";
+      } else if (currentStatus === "approved") {
+        infoBox.textContent = "Zatwierdziłeś ten dokument.";
+        infoBox.className = "alert alert-success";
+      } else {
+        infoBox.textContent = "Czekaj na ocenę przez ZOPZ.";
+        infoBox.className = "alert alert-warning";
+      }
+    }
+  }
+
+  async function submitEffectsZopz() {
+    let items = [];
+    let allChecked = true;
+    for (let i = 1; i <= 13; i++) {
+      const checked = document.querySelector(`input[name="ef_${i}"]:checked`);
+      if (!checked) allChecked = false;
+      items.push({
+        outcome_number: i,
+        achieved: checked ? checked.value === "1" : false,
+      });
+    }
+    if (!allChecked) {
+      showEffectsAlert("error", "Oceń wszystkie 13 efektów.");
+      return;
+    }
+    if (!confirm("Przekazać formularz do UOPZ? Edycja zostanie zablokowana."))
+      return;
+
+    const payload = {
+      internship_id: currentInternshipId,
+      status: "zopz_approved",
+      items: items,
+    };
+    const result = currentEffectsFormId
+      ? await apiPut(`/api/learning_outcomes/${currentEffectsFormId}`, payload)
+      : await apiPost(`/api/learning_outcomes`, payload);
+    if (result) {
+      showEffectsAlert("success", "Przekazano do UOPZ.");
+      await loadEffects(currentInternshipId);
+    }
+  }
+
+  async function reviewEffectsUopz(newStatus) {
+    const comment = document
+      .getElementById("effects-uopz-comment")
+      .value.trim();
+    if (!comment && newStatus === "approved") {
+      showEffectsAlert(
+        "error",
+        "Wprowadzenie opinii jest wymagane do zatwierdzenia.",
+      );
+      return;
+    }
+
+    const akcja = newStatus === "approved" ? "Zatwierdzić" : "Odrzucić";
+    if (!confirm(`${akcja} Załącznik 4?`)) return;
+
+    const payload = { status: newStatus, supervisor_comment_general: comment };
+    const result = await apiPut(
+      `/api/learning_outcomes/${currentEffectsFormId}/status`,
+      payload,
+    );
+
+    if (result) {
+      showEffectsAlert("success", "Status dokumentu został zaktualizowany!");
+      await loadEffects(currentInternshipId);
+    }
+  }
+
+  function closeDetail() {
+    document.getElementById("detail-panel").style.display = "none";
+    currentInternshipId = null;
+    currentReportId = null;
+    currentEffectsFormId = null;
+  }
+
+  load();
+</script>
+{% endblock %}

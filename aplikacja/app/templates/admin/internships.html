@@ -1,0 +1,419 @@
+{% extends "base.html" %} {% block title %}Praktyki{% endblock %} {% block
+page_title %}Zarządzanie praktykami{% endblock %} {% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal()">
+  + Dodaj praktykę
+</button>
+{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Lista praktyk</span>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <input
+        type="text"
+        class="form-control"
+        id="search"
+        placeholder="Szukaj po firmie lub indeksie..."
+        style="width: 260px"
+      />
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="internships-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Indeks studenta</th>
+          <th>Firma</th>
+          <th>Okres</th>
+          <th>UOPZ</th>
+          <th>ZOPZ</th>
+          <th>Status</th>
+          <th>Akcje</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td
+            colspan="6"
+            style="text-align: center; color: var(--muted); padding: 24px"
+          >
+            Ładowanie...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Dodaj praktykę</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="form-alert" style="display: none"></div>
+      <div class="form-group">
+        <label class="form-label"
+          >Numer indeksu studenta <span class="required">*</span></label
+        >
+        <input
+          type="text"
+          class="form-control"
+          id="f-index_number"
+          placeholder="np. 21230"
+          maxlength="5"
+        />
+        <div class="form-error" id="e-index_number">
+          Numer indeksu musi mieć dokładnie 5 cyfr.
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"
+          >Nazwa firmy <span class="required">*</span></label
+        >
+        <input
+          type="text"
+          class="form-control"
+          id="f-company_name"
+          placeholder="np. ABC Software Sp. z o.o."
+        />
+        <div class="form-error" id="e-company_name">Pole wymagane.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Adres firmy</label>
+        <input
+          type="text"
+          class="form-control"
+          id="f-company_address"
+          placeholder="np. Elbląg"
+        />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"
+            >Data rozpoczęcia <span class="required">*</span></label
+          >
+          <input type="date" class="form-control" id="f-start_date" />
+          <div class="form-error" id="e-start_date">Pole wymagane.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label"
+            >Data zakończenia <span class="required">*</span></label
+          >
+          <input type="date" class="form-control" id="f-end_date" />
+          <div class="form-error" id="e-end_date">
+            Data musi być późniejsza niż rozpoczęcie.
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Opiekun uczelniany (UOPZ)</label>
+          <select class="form-control" id="f-uopz_id">
+            <option value="">— wybierz —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opiekun zakładowy (ZOPZ)</label>
+          <select class="form-control" id="f-zopz_id">
+            <option value="">— wybierz —</option>
+          </select>
+        </div>
+      </div>
+      <div
+        class="form-row"
+        style="
+          margin-top: 15px;
+          border-top: 1px solid var(--border);
+          padding-top: 15px;
+        "
+      >
+        <div class="form-group" style="flex: 1">
+          <label class="form-label">Nr porozumienia</label>
+          <input
+            type="text"
+            class="form-control"
+            id="f-agreement_no"
+            placeholder="np. 123/2026"
+          />
+        </div>
+        <div class="form-group" style="flex: 1">
+          <label class="form-label">Data porozumienia</label>
+          <input type="date" class="form-control" id="f-agreement_date" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Anuluj</button>
+      <button class="btn btn-primary" onclick="submitForm()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="status-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Zmień status praktyki</span>
+      <button class="modal-close" onclick="closeStatusModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-group">
+        <label class="form-label">Nowy status</label>
+        <select class="form-control" id="edit-status">
+          <option value="pending">Oczekująca</option>
+          <option value="active">W trakcie</option>
+          <option value="completed">Zakończona</option>
+          <option value="cancelled">Anulowana</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeStatusModal()">
+        Anuluj
+      </button>
+      <button class="btn btn-primary" onclick="saveStatus()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<div
+  id="slide-panel"
+  style="
+    display: none;
+    margin-top: 32px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+  "
+>
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    "
+  >
+    <h3 id="panel-title">Edycja szczegółów</h3>
+    <button class="btn btn-secondary btn-sm" onclick="closePanel()">
+      Zamknij
+    </button>
+  </div>
+
+  <div
+    style="
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    "
+  >
+    <h5>Dane formalne (Dziekanat)</h5>
+    <div class="form-row">
+      <div class="form-group" style="flex: 1">
+        <label>Nr porozumienia</label>
+        <input type="text" id="p-agreement_no" class="form-control" />
+      </div>
+      <div class="form-group" style="flex: 1">
+        <label>Data porozumienia</label>
+        <input type="date" id="p-agreement_date" class="form-control" />
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="saveDetails()">Zapisz zmiany</button>
+</div>
+
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  let allInternships = [];
+  let supervisors = [];
+
+  async function loadData() {
+    try {
+      const [internships, supData] = await Promise.all([
+        apiFetch("/api/internships"),
+        apiFetch("/api/students/list/supervisors"),
+      ]);
+
+      allInternships = internships || [];
+      supervisors = supData || [];
+
+      renderTable(allInternships);
+
+      const uopzSel = document.getElementById("f-uopz_id");
+      const zopzSel = document.getElementById("f-zopz_id");
+
+      if (uopzSel && zopzSel) {
+        uopzSel.innerHTML = '<option value="">— wybierz —</option>';
+        zopzSel.innerHTML = '<option value="">— wybierz —</option>';
+
+        supervisors
+          .filter((s) => s.role === "uopz")
+          .forEach((s) => {
+            uopzSel.add(new Option(s.full_name + " (" + s.email + ")", s.id));
+          });
+        supervisors
+          .filter((s) => s.role === "zopz")
+          .forEach((s) => {
+            zopzSel.add(new Option(s.full_name + " (" + s.email + ")", s.id));
+          });
+      }
+    } catch (err) {
+      console.error(err);
+      document.querySelector("#internships-table tbody").innerHTML =
+        '<tr><td colspan="8" style="text-align:center; color:red; padding: 24px;">Błąd pobierania danych. Wciśnij F12 i sprawdź zakładkę Console.</td></tr>';
+    }
+  }
+
+  function renderTable(data) {
+    const tbody = document.querySelector("#internships-table tbody");
+    tbody.innerHTML = data.length
+      ? data
+          .map(
+            (i) => `
+      <tr>
+        <td>#${i.id}</td>
+        <td>${i.student_index || i.student_id}</td>
+        <td>${i.company_name}</td>
+        <td>${i.start_date} — ${i.end_date}</td>
+        <td>${supervisors.find((s) => s.id == i.uopz_id)?.full_name || "—"}</td>
+        <td>${supervisors.find((s) => s.id == i.zopz_id)?.full_name || "—"}</td>
+        <td><span class="badge badge-${i.status}">${i.status}</span></td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openStatusModal(${i.id}, '${i.status}')">Status</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteInternship(${i.id})">Usuń</button>
+        </td>
+      </tr>`,
+          )
+          .join("")
+      : '<tr><td colspan="8" style="text-align:center; padding: 24px;">Brak praktyk</td></tr>';
+  }
+
+  function openModal() {
+    document.getElementById("modal").classList.add("show");
+  }
+
+  function closeModal() {
+    document.getElementById("modal").classList.remove("show");
+    const alertBox = document.getElementById("form-alert");
+    if (alertBox) alertBox.style.display = "none";
+  }
+
+  async function submitForm() {
+    let valid = true;
+    const required = [
+      "f-index_number",
+      "f-company_name",
+      "f-start_date",
+      "f-end_date",
+    ];
+
+    required.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) {
+        el.classList.add("error");
+        valid = false;
+      } else {
+        el.classList.remove("error");
+      }
+    });
+
+    if (!valid) return;
+
+    const uopzVal = document.getElementById("f-uopz_id").value;
+    const zopzVal = document.getElementById("f-zopz_id").value;
+
+    const payload = {
+      index_number: document.getElementById("f-index_number").value.trim(),
+      company_name: document.getElementById("f-company_name").value,
+      company_address: document.getElementById("f-company_address").value,
+      start_date: document.getElementById("f-start_date").value,
+      end_date: document.getElementById("f-end_date").value,
+      uopz_id: uopzVal ? parseInt(uopzVal) : null,
+      zopz_id: zopzVal ? parseInt(zopzVal) : null,
+      agreement_no: document.getElementById("f-agreement_no").value,
+      agreement_date: document.getElementById("f-agreement_date").value || null,
+    };
+
+    const result = await apiPost("/api/internships", payload);
+
+    if (result) {
+      closeModal();
+      loadData();
+    } else {
+      const alertBox = document.getElementById("form-alert");
+      alertBox.className = "alert alert-error";
+      alertBox.textContent =
+        window.lastError ||
+        "Błąd 400: Serwer odrzucił dane. Sprawdź F12 -> Network.";
+      alertBox.style.display = "block";
+    }
+  }
+
+  function openStatusModal(id, status) {
+    document.getElementById("edit-id").value = id;
+    document.getElementById("edit-status").value = status;
+    document.getElementById("status-modal").classList.add("show");
+  }
+
+  function closeStatusModal() {
+    document.getElementById("status-modal").classList.remove("show");
+  }
+
+  async function saveStatus() {
+    const id = document.getElementById("edit-id").value;
+    const status = document.getElementById("edit-status").value;
+    const result = await apiPut(`/api/internships/${id}`, { status });
+    if (result) {
+      closeStatusModal();
+      loadData();
+    }
+  }
+
+  async function deleteInternship(id) {
+    if (confirm("Na pewno usunąć?")) {
+      await apiDelete(`/api/internships/${id}`);
+      loadData();
+    }
+  }
+
+  function openPanel(id) {
+    const i = allInternships.find((x) => x.id === id);
+    document.getElementById("panel-title").textContent =
+      `Edycja: ${i.student_name || "Praktyka #" + i.id}`;
+    document.getElementById("p-agreement_no").value = i.agreement_no || "";
+    document.getElementById("p-agreement_date").value = i.agreement_date || "";
+    document.getElementById("slide-panel").dataset.id = id;
+    document.getElementById("slide-panel").style.display = "block";
+    document
+      .getElementById("slide-panel")
+      .scrollIntoView({ behavior: "smooth" });
+  }
+
+  function closePanel() {
+    document.getElementById("slide-panel").style.display = "none";
+  }
+
+  async function saveDetails() {
+    const id = document.getElementById("slide-panel").dataset.id;
+    const payload = {
+      agreement_no: document.getElementById("p-agreement_no").value,
+      agreement_date: document.getElementById("p-agreement_date").value,
+    };
+
+    const result = await apiPut(`/api/internships/${id}`, payload);
+    if (result) {
+      alert("Dane formalne zostały zapisane.");
+      closePanel();
+      loadData();
+    }
+  }
+
+  loadData();
+</script>
+{% endblock %}

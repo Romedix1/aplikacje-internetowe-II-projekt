@@ -1,0 +1,416 @@
+{% extends "base.html" %} {% block title %}Program i Harmonogram{% endblock %}
+{% block page_title %}Załącznik 2a - Program i Harmonogram Praktyki{% endblock
+%} {% block content %}
+<div
+  id="no-internship-alert"
+  class="alert alert-warning"
+  style="display: none; margin-bottom: 20px"
+>
+  Nie masz aktywnej praktyki. Nie możesz wypełnić harmonogramu.
+</div>
+
+<div id="main-form" style="display: none">
+  <div
+    class="alert alert-info"
+    id="status-info-box"
+    style="margin-bottom: 20px"
+  >
+    Ładowanie danych...
+  </div>
+
+  <div class="card" style="margin-bottom: 24px">
+    <div class="card-header">
+      <span class="card-title">1. Program praktyki zawodowej</span>
+      <span id="doc-badge" class="badge" style="display: none"></span>
+    </div>
+    <div class="table-wrap">
+      <table style="width: 100%; border-collapse: collapse">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border)">
+            <th style="padding: 12px; width: 5%; text-align: center">Nr</th>
+            <th style="padding: 12px; width: 45%">Efekt kształcenia</th>
+            <th style="padding: 12px; width: 50%">
+              Dział (komórka) / przykładowe prace wykonywane przez praktykanta
+            </th>
+          </tr>
+        </thead>
+        <tbody id="program-tasks-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div
+      class="card-header"
+      style="display: flex; justify-content: space-between; align-items: center"
+    >
+      <span class="card-title">2. Harmonogram praktyki</span>
+      <button
+        id="btn-add-row"
+        class="btn btn-secondary btn-sm"
+        onclick="addRow()"
+      >
+        + Dodaj dział
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table style="width: 100%; text-align: left; border-collapse: collapse">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border)">
+            <th style="padding: 12px; width: 60px; text-align: center">L.p.</th>
+            <th style="padding: 12px">
+              Dział / komórka (miejsce odbywania praktyki)
+            </th>
+            <th style="padding: 12px; width: 150px; text-align: center">
+              Liczba dni roboczych
+            </th>
+            <th style="padding: 12px; width: 80px; text-align: center">
+              Akcje
+            </th>
+          </tr>
+        </thead>
+        <tbody id="schedule-tbody"></tbody>
+        <tfoot>
+          <tr
+            style="
+              background: #f8f9fa;
+              font-weight: bold;
+              border-top: 2px solid var(--border);
+            "
+          >
+            <td colspan="2" style="padding: 16px; text-align: right">
+              Łącznie planowanych dni:
+            </td>
+            <td
+              style="padding: 16px; text-align: center; font-size: 16px"
+              id="sum-cell"
+            >
+              <span id="sum-days">0</span> / 120
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div
+      id="uopz-feedback-box"
+      class="alert alert-warning"
+      style="display: none; margin: 15px"
+    >
+      <strong>Uwagi UOPZ:</strong> <span id="uopz-comment-text"></span>
+    </div>
+
+    <div
+      id="action-buttons"
+      style="
+        padding: 20px;
+        display: flex;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+      "
+    >
+      <button
+        id="btn-save-draft"
+        class="btn btn-secondary"
+        onclick="saveData('draft')"
+      >
+        Zapisz roboczo (Szkic)
+      </button>
+      <button
+        id="btn-submit"
+        class="btn btn-primary"
+        onclick="saveData('submitted')"
+      >
+        Przekaż do oceny UOPZ
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  const OUTCOMES = [
+    "Ma wiedzę na temat sposobu realizacji zadań inżynierskich dotyczących informatyki z zachowaniem standardów i norm technicznych",
+    "Zna technologie, narzędzia, metody, techniki oraz sprzęt stosowane w informatyce",
+    "Zna ekonomiczne, prawne skutki własnych działań podejmowanych w ramach praktyki oraz ograniczenia wynikające z prawa autorskiego i kodeksu pracy",
+    "Zna zasady bezpieczeństwa pracy i ergonomii w zawodzie informatyka",
+    "Pozyskuje informacje odnośnie technologii, metod, technik, sprzętu wymaganego do realizacji powierzonego zadania...",
+    "W oparciu o kontakty ze środowiskiem inżynierskim zakładu, potrafi podnieść swoje kompetencje, wiedzę i umiejętności...",
+    "Opracowuje dokumentację dotyczącą realizacji podejmowanych zadań w ramach praktyki, a także referuje ustnie prezentowane w niej zagadnienia",
+    "Potrafi zidentyfikować problem informatyczny występujący w zakładzie pracy / instytucji, opisać go, przedstawić koncepcję rozwiązania i ją zrealizować.",
+    "Potrafi rozwiązać rzeczywiste zadanie inżynierskie z zakresu działalności informatycznej zakładu pracy/instytucji stosując normy i standardy...",
+    "Pracuje w zespole zajmującym się zawodowo branżą IT",
+    "Przestrzega zasad etyki zawodowej i zgodnie z tymi zasadami korzysta z wiedzy i pomocy doświadczonych kolegów",
+    "Kontaktując się z osobami spoza branży potrafi zarówno pozyskać od nich niezbędne informacje do realizacji planowanego zadania...",
+    "Dostrzega w praktyce tempo deaktualizacji wiedzy informatycznej oraz skutki działalności informatyków w szczególności ekonomiczne i społeczne",
+  ];
+
+  let currentInternshipId = null;
+  let currentStatus = "draft";
+  let scheduleEntries = [];
+  let programTasksData = {};
+
+  const DOC_STATUS_PL = {
+    draft: "Roboczy (Szkic)",
+    submitted: "Przesłany do UOPZ",
+    under_review: "W weryfikacji",
+    needs_revision: "Do poprawy",
+    approved: "Zatwierdzony",
+  };
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const internships = await apiFetch(
+      `/api/internships?student_id={{ current_user.id }}`,
+    );
+
+    if (!internships || internships.length === 0) {
+      document.getElementById("no-internship-alert").style.display = "block";
+      return;
+    }
+
+    currentInternshipId = internships[0].id;
+    document.getElementById("main-form").style.display = "block";
+
+    await loadProgramData();
+  });
+
+  async function loadProgramData() {
+    const data = await apiFetch(`/api/program_schedule/${currentInternshipId}`);
+    if (!data) return;
+
+    currentStatus = data.status || "draft";
+
+    const feedbackBox = document.getElementById("uopz-feedback-box");
+    const feedbackText = document.getElementById("uopz-comment-text");
+
+    if (data.uopz_comment && data.uopz_comment.trim() !== "") {
+      feedbackBox.style.display = "block";
+      feedbackText.textContent = data.uopz_comment;
+    } else {
+      feedbackBox.style.display = "none";
+    }
+
+    if (data.program_tasks) {
+      data.program_tasks.forEach((task) => {
+        programTasksData[task.outcome_number] = task.description;
+      });
+    }
+
+    scheduleEntries =
+      data.entries && data.entries.length > 0
+        ? data.entries
+        : [{ lp: 1, department: "", planned_days: 0 }];
+
+    renderProgramTasksTable();
+    renderScheduleTable();
+    updateUIBasedOnStatus();
+  }
+
+  function renderProgramTasksTable() {
+    const tbody = document.getElementById("program-tasks-tbody");
+    tbody.innerHTML = OUTCOMES.map((outcomeText, index) => {
+      const outcomeNumber = index + 1;
+      const savedValue = programTasksData[outcomeNumber] || "";
+      return `
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px; text-align: center; font-weight: bold;">${outcomeNumber < 10 ? "0" + outcomeNumber : outcomeNumber}</td>
+                    <td style="padding: 12px; font-size: 13px; color: #444;">${outcomeText}</td>
+                    <td style="padding: 12px;">
+                        <textarea class="form-control program-task-input" data-outcome="${outcomeNumber}" rows="3" placeholder="Opisz zadania...">${savedValue}</textarea>
+                    </td>
+                </tr>
+            `;
+    }).join("");
+  }
+
+  function renderScheduleTable() {
+    const tbody = document.getElementById("schedule-tbody");
+    tbody.innerHTML = "";
+    let sum = 0;
+
+    scheduleEntries.forEach((entry, index) => {
+      const lp = index + 1;
+      const days = parseInt(entry.planned_days) || 0;
+      sum += days;
+
+      tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px; text-align: center; font-weight: bold;">${lp}</td>
+                    <td style="padding: 12px;">
+                        <input type="text" class="form-control schedule-dept"
+                               value="${entry.department}"
+                               onchange="updateEntry(${index}, 'department', this.value)"
+                               placeholder="Np. Dział Wdrożeń IT">
+                    </td>
+                    <td style="padding: 12px;">
+                        <input type="number" class="form-control schedule-days"
+                               value="${days === 0 ? "" : days}" min="1" max="120"
+                               oninput="updateEntry(${index}, 'planned_days', this.value)"
+                               style="text-align: center;">
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <button class="btn btn-danger btn-sm btn-remove-row" onclick="removeRow(${index})">Usuń</button>
+                    </td>
+                </tr>
+            `;
+    });
+
+    document.getElementById("sum-days").textContent = sum;
+    const sumCell = document.getElementById("sum-cell");
+    sumCell.style.color = sum === 120 ? "green" : sum > 120 ? "red" : "inherit";
+  }
+
+  function addRow() {
+    scheduleEntries.push({
+      lp: scheduleEntries.length + 1,
+      department: "",
+      planned_days: 0,
+    });
+    renderScheduleTable();
+    updateUIBasedOnStatus();
+  }
+
+  function removeRow(index) {
+    scheduleEntries.splice(index, 1);
+    renderScheduleTable();
+    updateUIBasedOnStatus();
+  }
+
+  function updateEntry(index, field, value) {
+    scheduleEntries[index][field] = value;
+    if (field === "planned_days") {
+      renderScheduleTable();
+      const inputs = document.querySelectorAll(".schedule-days");
+      if (inputs[index]) inputs[index].focus();
+      updateUIBasedOnStatus();
+    }
+  }
+
+  function updateUIBasedOnStatus() {
+    const badge = document.getElementById("doc-badge");
+    const infoBox = document.getElementById("status-info-box");
+    const isEditable =
+      currentStatus === "draft" || currentStatus === "needs_revision";
+
+    badge.style.display = "inline-flex";
+    badge.textContent = DOC_STATUS_PL[currentStatus] || currentStatus;
+    badge.className = `badge badge-${currentStatus === "draft" ? "draft" : currentStatus === "approved" ? "active" : currentStatus === "needs_revision" ? "cancelled" : "under_review"}`;
+
+    document.getElementById("btn-add-row").style.display = isEditable
+      ? "inline-block"
+      : "none";
+    document.getElementById("action-buttons").style.display = isEditable
+      ? "flex"
+      : "none";
+
+    document
+      .querySelectorAll(".program-task-input")
+      .forEach((el) => (el.disabled = !isEditable));
+    document
+      .querySelectorAll(".schedule-dept")
+      .forEach((el) => (el.disabled = !isEditable));
+    document
+      .querySelectorAll(".schedule-days")
+      .forEach((el) => (el.disabled = !isEditable));
+    document
+      .querySelectorAll(".btn-remove-row")
+      .forEach(
+        (el) => (el.style.display = isEditable ? "inline-block" : "none"),
+      );
+
+    if (currentStatus === "approved") {
+      infoBox.className = "alert alert-success";
+      infoBox.textContent =
+        "Dokument został ostatecznie zatwierdzony przez UOPZ. Gotowy do druku.";
+    } else if (currentStatus === "needs_revision") {
+      infoBox.className = "alert alert-danger";
+      infoBox.textContent =
+        "Dokument został odrzucony do poprawy. Wprowadź zmiany i wyślij ponownie.";
+    } else if (!isEditable) {
+      infoBox.className = "alert alert-info";
+      infoBox.textContent =
+        "Dokument został przekazany do oceny. Edycja jest zablokowana do czasu decyzji.";
+    } else {
+      infoBox.className = "alert alert-info";
+      infoBox.textContent =
+        "Wypełnij zadania dla wszystkich 13 efektów oraz zaplanuj równe 120 dni roboczych w harmonogramie.";
+    }
+  }
+
+  async function saveData(targetStatus) {
+    const tasksPayload = [];
+    let hasEmptyTasks = false;
+
+    document.querySelectorAll(".program-task-input").forEach((el) => {
+      const val = el.value.trim();
+      if (!val) hasEmptyTasks = true;
+      tasksPayload.push({
+        outcome_number: parseInt(el.dataset.outcome),
+        description: val,
+      });
+    });
+
+    if (targetStatus === "submitted") {
+      if (hasEmptyTasks) {
+        alert(
+          "Aby wysłać dokument do oceny, musisz opisać przykładowe prace dla KAŻDEGO z 13 efektów!",
+        );
+        return;
+      }
+
+      let sum = 0;
+      let hasEmptyDept = false;
+      scheduleEntries.forEach((entry, idx) => {
+        entry.lp = idx + 1;
+        sum += parseInt(entry.planned_days) || 0;
+        if (!entry.department.trim()) hasEmptyDept = true;
+      });
+
+      if (hasEmptyDept) {
+        alert(
+          "W tabeli harmonogramu każdy wiersz musi mieć wpisaną nazwę działu.",
+        );
+        return;
+      }
+
+      if (sum !== 120) {
+        alert(
+          `Suma planowanych dni wynosi ${sum}. Aby wysłać dokument, musi wynosić dokładnie 120!`,
+        );
+        return;
+      }
+
+      if (!confirm("Wysłać do UOPZ? Zablokuje to możliwość edycji.")) return;
+    } else {
+      scheduleEntries.forEach((entry, idx) => (entry.lp = idx + 1));
+    }
+
+    const validEntries = scheduleEntries.filter(
+      (e) => parseInt(e.planned_days) > 0,
+    );
+
+    const payload = {
+      status: targetStatus,
+      program_tasks: tasksPayload,
+      entries: validEntries.map((e, idx) => ({
+        lp: idx + 1,
+        department: e.department.trim() || "Do uzupełnienia",
+        planned_days: parseInt(e.planned_days),
+      })),
+    };
+
+    const result = await apiPost(
+      `/api/program_schedule/${currentInternshipId}`,
+      payload,
+    );
+
+    if (result) {
+      alert(
+        targetStatus === "draft" ? "Szkic zapisany." : "Przekazano do UOPZ!",
+      );
+      await loadProgramData();
+    }
+  }
+</script>
+{% endblock %}

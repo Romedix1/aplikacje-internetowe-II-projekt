@@ -1,0 +1,147 @@
+{% extends "base.html" %} {% block title %}Dashboard{% endblock %} {% block
+page_title %}Dashboard{% endblock %} {% block content %}
+
+<div
+  id="profile-gate"
+  class="card"
+  style="display: none; border: 2px solid var(--primary)"
+>
+  <div class="card-header">
+    <span class="card-title">Uzupełnij swoje dane</span>
+  </div>
+  <div style="padding: 24px">
+    <p>Aby korzystać z systemu praktyk, musisz uzupełnić dane profilu:</p>
+    <div
+      style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+      "
+    >
+      <input
+        type="text"
+        class="form-control"
+        id="p-field"
+        placeholder="Kierunek studiów"
+      />
+      <input
+        type="text"
+        class="form-control"
+        id="p-year"
+        placeholder="Rok akademicki (np. 2025/2026)"
+      />
+      <select class="form-control" id="p-form">
+        <option value="">Wybierz formę studiów...</option>
+        <option value="stacjonarne">Stacjonarne</option>
+        <option value="niestacjonarne">Niestacjonarne</option>
+      </select>
+      <input
+        type="number"
+        class="form-control"
+        id="p-semester"
+        placeholder="Semestr"
+      />
+    </div>
+    <button class="btn btn-primary" onclick="saveProfile()">
+      Zapisz i kontynuuj
+    </button>
+  </div>
+</div>
+
+<div id="dashboard-content" style="display: none">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Status praktyki</div>
+      <div class="stat-value" id="stat-status">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wpisy w dzienniku</div>
+      <div class="stat-value" id="stat-entries">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Dokumenty</div>
+      <div class="stat-value" id="stat-docs">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Witaj, {{ current_user.full_name }}</span>
+    </div>
+    <p style="color: var(--muted); font-size: 14px">
+      Rola: <strong>{{ current_user.role }}</strong>
+    </p>
+  </div>
+
+  {% if current_user.role == 'student' %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Moja praktyka</span>
+      <a
+        href="{{ url_for('student.internship') }}"
+        class="btn btn-secondary btn-sm"
+        >Szczegóły</a
+      >
+    </div>
+    <div id="internship-info">
+      <div class="empty-state">
+        <p>Nie masz jeszcze zarejestrowanej praktyki.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %} {% block scripts %}
+<script src="{{ url_for('static', filename='js/api.js') }}"></script>
+<script>
+  const userRole = "{{ current_user.role }}";
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    if (userRole === "student") {
+      const student = await apiFetch("/api/students/{{ current_user.id }}");
+
+      if (!student || !student.semester || !student.study_field) {
+        document.getElementById("profile-gate").style.display = "block";
+      } else {
+        document.getElementById("dashboard-content").style.display = "block";
+        loadInternshipData();
+      }
+    } else {
+      document.getElementById("dashboard-content").style.display = "block";
+
+      document.getElementById("stat-status").textContent = "N/A";
+      document.getElementById("stat-entries").textContent = "N/A";
+      document.getElementById("stat-docs").textContent = "N/A";
+    }
+  });
+
+  async function loadInternshipData() {
+    const internships = await apiFetch(
+      "/api/internships?student_id={{ current_user.id }}",
+    );
+    if (internships && internships.length > 0) {
+      const i = internships[0];
+      document.getElementById("stat-status").textContent = i.status;
+      document.getElementById("internship-info").innerHTML = `
+                <table style="width:100%">
+                    <tr><td style="color:var(--muted);padding:6px 0">Firma</td><td><strong>${i.company_name}</strong></td></tr>
+                    <tr><td style="color:var(--muted);padding:6px 0">Okres</td><td>${i.start_date} — ${i.end_date}</td></tr>
+                </table>`;
+    }
+  }
+
+  async function saveProfile() {
+    const data = {
+      study_field: document.getElementById("p-field").value.trim(),
+      study_year: document.getElementById("p-year").value.trim(),
+      study_form: document.getElementById("p-form").value,
+      semester:
+        parseInt(document.getElementById("p-semester").value, 10) || null,
+    };
+    const res = await apiPut("/api/students/{{ current_user.id }}", data);
+    if (res) location.reload();
+    else alert("Błąd zapisu danych.");
+  }
+</script>
+{% endblock %}
