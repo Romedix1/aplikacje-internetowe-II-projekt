@@ -368,7 +368,7 @@ def generate_diary_pdf(internship_id):
 
         pdf.set_y(start_y + row_height)
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),

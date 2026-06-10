@@ -205,7 +205,7 @@ def generate_report_pdf(internship_id):
         pdf.multi_cell(0, 6, str(content or ""))
         pdf.ln(6)
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),

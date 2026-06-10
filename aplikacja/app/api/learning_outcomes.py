@@ -352,7 +352,7 @@ def generate_learning_outcomes_pdf(internship_id):
     pdf.cell(0, 5, "………………………….…………………………………..", ln=True, align="R")
     pdf.cell(0, 5, "Data, podpis opiekuna uczelnianego", ln=True, align="R")
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),

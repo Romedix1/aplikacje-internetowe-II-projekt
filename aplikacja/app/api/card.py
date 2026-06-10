@@ -672,7 +672,7 @@ def generate_card_pdf(internship_id):
     pdf.rect(x_start, y_box_start, W, y_box_end - y_box_start)
     pdf.set_y(y_box_end)
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),

@@ -444,7 +444,7 @@ def generate_program_pdf(internship_id):
     pdf.cell(sig_w, 4, "opiekuna praktyki", align="C")
     pdf.cell(sig_w, 4, "", align="C", ln=True)
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),

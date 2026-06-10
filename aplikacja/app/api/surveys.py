@@ -290,7 +290,7 @@ def generate_survey_pdf(internship_id):
     pdf.set_font("Cambria", "B", 12)
     pdf.cell(0, 6, "Dziękujemy za udział w badaniu", ln=True, align="R")
 
-    pdf_bytes = pdf.output(dest="S")
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
 
     return send_file(
         io.BytesIO(pdf_bytes),
